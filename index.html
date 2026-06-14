@@ -194,6 +194,29 @@ td.tdn{height:auto;padding:10px 12px}
 .bs{background:var(--tx);color:#fff;border-color:var(--tx)}
 .bs:hover{opacity:.85}
 
+
+/* SOFT DELETE */
+async function deleteIssue(){
+  const id=G('dpdb').dataset.id;
+  if(!id)return;
+  if(!confirm('Flag this issue as deleted? It can be restored later.'))return;
+  const idx=issues.findIndex(i=>i.id===id);
+  if(idx>=0)issues[idx].is_deleted=true;
+  saveLocal();cp2();renderAll();
+  try{await qpatch('issues',id,{is_deleted:true});toast('Issue flagged as deleted')}
+  catch(e){toast('Delete failed: '+e.message,'err')}
+}
+
+async function restoreIssue(){
+  const id=G('dpdb').dataset.id;
+  if(!id)return;
+  const idx=issues.findIndex(i=>i.id===id);
+  if(idx>=0)issues[idx].is_deleted=false;
+  saveLocal();cp2();renderAll();
+  try{await qpatch('issues',id,{is_deleted:false});toast('Issue restored')}
+  catch(e){toast('Restore failed: '+e.message,'err')}
+}
+
 /* TOAST */
 #ts{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:6px;z-index:9999}
 .tst{background:var(--tx);color:#fff;padding:8px 14px;border-radius:var(--r6);font-size:12px;font-weight:500;display:flex;align-items:center;gap:8px;animation:tIn .2s ease;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.2)}
@@ -217,6 +240,15 @@ td.tdn{height:auto;padding:10px 12px}
 .upl-pbar-wrap{flex:1;height:3px;background:var(--bd);border-radius:2px;overflow:hidden}
 .upl-pbar{height:100%;background:var(--ac);border-radius:2px;transition:width .2s}
 .upl-pname{max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--t3)}
+
+.btn-del{background:#fff1f2;border-color:#fecdd3;color:#9f1239}
+.btn-del:hover{background:#fecdd3}
+.btn-restore{background:#f0fdf4;border-color:#bbf7d0;color:#14532d}
+.btn-restore:hover{background:#bbf7d0}
+tbody tr.deleted-row{opacity:.5}
+tbody tr.deleted-row .iname{text-decoration:line-through;color:var(--t3)}
+.deleted-badge{display:inline-flex;align-items:center;gap:4px;margin-top:4px;padding:2px 7px;background:#fff1f2;border-radius:3px;font-size:10px;font-weight:600;color:#9f1239;border:1px solid #fecdd3}
+.dp-deleted-banner{background:#fff1f2;border:1px solid #fecdd3;border-radius:var(--r4);padding:8px 12px;margin-bottom:16px;font-size:12px;color:#9f1239;font-weight:500;display:flex;align-items:center;gap:6px}
 </style>
 </head>
 <body>
@@ -246,6 +278,7 @@ td.tdn{height:auto;padding:10px 12px}
       <div class="si" onclick="sv('In Progress',this)"><span class="ic" style="color:#60a5fa">&#9680;</span>In Progress<span class="sc" id="scp">0</span></div>
       <div class="si" onclick="sv('Not Started',this)"><span class="ic" style="color:#a1a1aa">&#9675;</span>Not Started<span class="sc" id="scn">0</span></div>
       <div class="si" onclick="sv('Done',this)"><span class="ic" style="color:#4ade80">&#10003;</span>Done<span class="sc" id="scd">0</span></div>
+      <div class="si" data-view="Deleted" onclick="sv('Deleted',this)"><span class="ic" style="color:#f87171">&#x1F5D1;</span>Deleted<span class="sc" id="scx">0</span></div>
     </div>
     <div class="sbs" style="margin-top:8px">
       <div class="sbl">Team</div>
@@ -278,6 +311,8 @@ td.tdn{height:auto;padding:10px 12px}
       <div class="ft" onclick="st('In Progress',this)">In Progress <span class="ftc" id="fi">0</span></div>
       <div class="ft" onclick="st('Done',this)">Done <span class="ftc" id="fd">0</span></div>
       <div class="ft" onclick="st('Need to discuss',this)">To Discuss <span class="ftc" id="fq">0</span></div>
+      <div class="sep"></div>
+      <div class="ft ft-del" onclick="sv('Deleted',document.querySelector('.si[data-view=Deleted]'))">&#x1F5D1; Deleted <span class="ftc" id="fx">0</span></div>
       <div class="sep"></div>
       <div class="ft" onclick="st('Client',this)">Client <span class="ftc" id="fc">0</span></div>
       <div class="ft" onclick="st('Partner',this)">Partner <span class="ftc" id="fp">0</span></div>
@@ -316,6 +351,7 @@ td.tdn{height:auto;padding:10px 12px}
   <div class="dpb" id="dpb"></div>
   <div class="dpft">
     <button class="btn bg2" onclick="cp2()">Close</button>
+    <button class="btn btn-del" id="dpdb" onclick="deleteIssue()">Delete</button>
     <button class="btn bs" id="dpeb" onclick="efp()">Edit Issue</button>
   </div>
 </div>
@@ -531,11 +567,17 @@ function renderOnline(){
 
 function filtered(){
   let d=[...issues];
-  const q=(G('srq')?.value||'').toLowerCase().trim();
-  if(q)d=d.filter(i=>['name','type','user','status','priority','details'].some(k=>(i[k]||'').toLowerCase().includes(q)));
-  if(vF!=='all'){
-    const VM={High:'priority',Medium:'priority',Low:'priority','In Progress':'status','Not Started':'status',Done:'status',Omar:'user',Mohamed:'user'};
-    const f=VM[vF];if(f)d=d.filter(i=>(i[f]||'')===vF);
+  // Always hide deleted unless explicitly viewing Deleted
+  if(vF==='Deleted'){
+    d=d.filter(i=>i.is_deleted===true||i.is_deleted==='true'||i.is_deleted===1);
+  }else{
+    d=d.filter(i=>!i.is_deleted);
+    const q=(G('srq')?.value||'').toLowerCase().trim();
+    if(q)d=d.filter(i=>['name','type','user','status','priority','details'].some(k=>(i[k]||'').toLowerCase().includes(q)));
+    if(vF!=='all'){
+      const VM={High:'priority',Medium:'priority',Low:'priority','In Progress':'status','Not Started':'status',Done:'status',Omar:'user',Mohamed:'user'};
+      const f=VM[vF];if(f)d=d.filter(i=>(i[f]||'')===vF);
+    }
   }
   if(activeFilters.size>0){
     d=d.filter(i=>{
@@ -568,10 +610,12 @@ function rt(){
     const color=uc(iss.user||'');
     const urls=(iss.url||'').split(',').map(u=>u.trim()).filter(Boolean);
     const thumbs=urls.map(u=>`<img class="thumb" src="${esc(u)}" onclick="event.stopPropagation();olb('${esc(u)}')" onerror="this.style.display='none'" loading="lazy">`).join('');
-    return`<tr class="${selId===iss.id?'sel':ed?'rem':''}" onclick="selRow('${iss.id}')">
+    const isDel=iss.is_deleted===true||iss.is_deleted==='true'||iss.is_deleted===1;
+    return`<tr class="${selId===iss.id?'sel':ed?'rem':isDel?'deleted-row':''}" onclick="selRow('${iss.id}')">
       <td><span class="tidx">${idx+1}</span></td>
       <td class="tdn">
         <div class="iname">${esc(iss.name||'')}</div>
+        ${isDel?'<span class="deleted-badge">&#x1F5D1; Deleted</span>':''}
         ${ed?`<div class="eb"><div class="ebd"></div>${esc(ed.name)} is editing</div>`:''}
       </td>
       <td><div class="sc2 ${pC(iss.priority)}"><select onchange="upd('${iss.id}','priority',this.value)" onclick="event.stopPropagation()">${['High','Medium','Low'].map(v=>`<option${v===iss.priority?' selected':''}>${v}</option>`).join('')}</select></div></td>
@@ -584,8 +628,9 @@ function rt(){
 }
 
 function renderStats(){
-  const t=issues.length,h=issues.filter(i=>i.priority==='High').length;
-  const ip=issues.filter(i=>i.status==='In Progress').length,dn=issues.filter(i=>i.status==='Done').length,di=issues.filter(i=>i.status==='Need to discuss').length;
+  const alive=issues.filter(i=>!i.is_deleted);
+  const t=alive.length,h=alive.filter(i=>i.priority==='High').length;
+  const ip=alive.filter(i=>i.status==='In Progress').length,dn=alive.filter(i=>i.status==='Done').length,di=alive.filter(i=>i.status==='Need to discuss').length;
   G('ss').innerHTML=[{l:'Total',v:t,d:null},{l:'High priority',v:h,d:'#f87171'},{l:'In progress',v:ip,d:'#60a5fa'},{l:'Done',v:dn,d:'#4ade80'},{l:'To discuss',v:di,d:'#fb923c'}]
     .map(s=>`<div class="si2">${s.d?`<div class="sdot" style="background:${s.d}"></div>`:''}<strong>${s.v}</strong>${s.l}</div>`).join('');
 }
@@ -593,12 +638,15 @@ function renderStats(){
 function renderCounts(){
   const cn=fn=>issues.filter(fn).length;
   const s=(id,n)=>{const e=G(id);if(e)e.textContent=n};
-  s('sca',issues.length);s('sch',cn(i=>i.priority==='High'));s('scp',cn(i=>i.status==='In Progress'));
-  s('scn',cn(i=>i.status==='Not Started'));s('scd',cn(i=>i.status==='Done'));
+  const nd=i=>!i.is_deleted;
+  s('sca',cn(nd));s('sch',cn(i=>i.priority==='High'&&nd(i)));s('scp',cn(i=>i.status==='In Progress'&&nd(i)));
+  s('scn',cn(i=>i.status==='Not Started'&&nd(i)));s('scd',cn(i=>i.status==='Done'&&nd(i)));
   s('sco',cn(i=>(i.user||'').toLowerCase()==='omar'));s('scm',cn(i=>(i.user||'').toLowerCase()==='mohamed'));
   s('fa',issues.length);s('fh',cn(i=>i.priority==='High'));s('fm',cn(i=>i.priority==='Medium'));s('fl',cn(i=>i.priority==='Low'));
   s('fn',cn(i=>i.status==='Not Started'));s('fi',cn(i=>i.status==='In Progress'));s('fd',cn(i=>i.status==='Done'));s('fq',cn(i=>i.status==='Need to discuss'));
-  s('fc',cn(i=>(i.type||'').includes('Client')));s('fp',cn(i=>(i.type||'').includes('Partner')));s('fk',cn(i=>(i.type||'').includes('CPanel')));
+  s('fc',cn(i=>(i.type||'').includes('Client')&&!i.is_deleted));s('fp',cn(i=>(i.type||'').includes('Partner')&&!i.is_deleted));s('fk',cn(i=>(i.type||'').includes('CPanel')&&!i.is_deleted));
+  const delCnt=cn(i=>i.is_deleted===true||i.is_deleted==='true'||i.is_deleted===1);
+  s('scx',delCnt);s('fx',delCnt);
 }
 
 /* DETAIL PANEL */
@@ -625,6 +673,16 @@ function openDP(id){
     ${urls.length?`<div class="dpl">Attachments (${urls.length})</div><div class="dpimgs">${urls.map(u=>`<img class="dpimg" src="${esc(u)}" onclick="olb('${esc(u)}')" onerror="this.parentNode&&this.parentNode.removeChild(this)" loading="lazy">`).join('')}</div>`:''}
   `;
   G('dpeb').dataset.id=id;
+  G('dpdb').dataset.id=id;
+  const isDel2=iss.is_deleted===true||iss.is_deleted==='true'||iss.is_deleted===1;
+  // Toggle delete/restore button
+  const delbtn=G('dpdb');
+  if(isDel2){
+    delbtn.textContent='Restore';delbtn.className='btn btn-restore';delbtn.onclick=()=>restoreIssue();
+  }else{
+    delbtn.textContent='Delete';delbtn.className='btn btn-del';delbtn.onclick=()=>deleteIssue();
+  }
+  G('dpeb').style.display=isDel2?'none':'flex';
   const back=G('dpback');
   back.style.display='block';
   requestAnimationFrame(()=>requestAnimationFrame(()=>{ back.classList.add('open'); G('dp').classList.add('open'); }));
@@ -649,7 +707,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){clb();cm();cp2()}})
 /* FILTERS */
 function sv(val,el){
   vF=val;document.querySelectorAll('.si').forEach(b=>b.classList.remove('active'));el.classList.add('active');
-  const L={all:'All Issues',High:'High Priority','In Progress':'In Progress','Not Started':'Not Started',Done:'Done',Omar:'Omar',Mohamed:'Mohamed'};
+  const L={all:'All Issues',High:'High Priority','In Progress':'In Progress','Not Started':'Not Started',Done:'Done',Omar:'Omar',Mohamed:'Mohamed',Deleted:'Deleted Issues'};
   G('tbt').textContent=L[val]||val;rt();
 }
 function st(val,el){
@@ -713,6 +771,29 @@ async function sm(){
   cm();renderAll();
 }
 function cm(){G('mo').style.display='none'}
+
+
+/* SOFT DELETE */
+async function deleteIssue(){
+  const id=G('dpdb').dataset.id;
+  if(!id)return;
+  if(!confirm('Flag this issue as deleted? It can be restored later.'))return;
+  const idx=issues.findIndex(i=>i.id===id);
+  if(idx>=0)issues[idx].is_deleted=true;
+  saveLocal();cp2();renderAll();
+  try{await qpatch('issues',id,{is_deleted:true});toast('Issue flagged as deleted')}
+  catch(e){toast('Delete failed: '+e.message,'err')}
+}
+
+async function restoreIssue(){
+  const id=G('dpdb').dataset.id;
+  if(!id)return;
+  const idx=issues.findIndex(i=>i.id===id);
+  if(idx>=0)issues[idx].is_deleted=false;
+  saveLocal();cp2();renderAll();
+  try{await qpatch('issues',id,{is_deleted:false});toast('Issue restored')}
+  catch(e){toast('Restore failed: '+e.message,'err')}
+}
 
 /* TOAST */
 function toast(msg,type=''){
