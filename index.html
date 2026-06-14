@@ -201,6 +201,22 @@ td.tdn{height:auto;padding:10px 12px}
 .tst.err{background:#991b1b}
 @keyframes tIn{from{transform:translateY(8px);opacity:0}to{transform:translateY(0);opacity:1}}
 .er td{padding:60px 20px;text-align:center;color:var(--t3);font-size:13px}
+
+/* UPLOAD AREA */
+.upl-area{border:1.5px dashed var(--bd2);border-radius:var(--r6);padding:14px;cursor:pointer;transition:border-color .15s,background .15s;min-height:64px;position:relative}
+.upl-area:hover,.upl-area.drag{border-color:var(--ac);background:var(--acb)}
+.upl-hint{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--t3);font-size:12px;text-align:center;padding:6px 0}
+.upl-ico{font-size:22px;line-height:1}
+.upl-thumbs{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.upl-thumb-wrap{position:relative;width:64px;height:64px;flex-shrink:0}
+.upl-thumb{width:64px;height:64px;object-fit:cover;border-radius:var(--r4);border:1px solid var(--bd);display:block}
+.upl-rm{position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;background:var(--tx);color:#fff;font-size:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:2px solid var(--su);line-height:1;font-weight:700}
+.upl-rm:hover{background:#ef4444}
+.upl-progress{margin-top:6px;display:flex;flex-direction:column;gap:4px}
+.upl-pitem{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--t2)}
+.upl-pbar-wrap{flex:1;height:3px;background:var(--bd);border-radius:2px;overflow:hidden}
+.upl-pbar{height:100%;background:var(--ac);border-radius:2px;transition:width .2s}
+.upl-pname{max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--t3)}
 </style>
 </head>
 <body>
@@ -336,7 +352,18 @@ td.tdn{height:auto;padding:10px 12px}
         <div class="mf"><label>Assignee</label><input id="mus" placeholder="Name..."></div>
       </div>
       <div class="mf"><label>Details</label><textarea id="mdt" rows="2" placeholder="Additional context..."></textarea></div>
-      <div class="mf"><label>Attachment URLs (comma-separated)</label><input id="mur" placeholder="https://..."></div>
+      <div class="mf">
+        <label>Attachments</label>
+        <div class="upl-area" id="upl-area" onclick="document.getElementById('upl-file').click()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="event.preventDefault();this.classList.remove('drag');handleFiles(event.dataTransfer.files)">
+          <input type="file" id="upl-file" multiple accept="image/*" style="display:none" onchange="handleFiles(this.files)">
+          <div class="upl-hint" id="upl-hint">
+            <span class="upl-ico">&#8679;</span>
+            <span>Drop images or click to upload</span>
+          </div>
+          <div class="upl-thumbs" id="upl-thumbs"></div>
+        </div>
+        <div class="upl-progress" id="upl-progress"></div>
+      </div>
     </div>
     <div class="mft">
       <button class="btn bg2" onclick="cm()">Cancel</button>
@@ -662,18 +689,18 @@ async function upd(id,field,value){
 function openAdd(){
   editId=null;G('mtitle').textContent='New Issue';
   G('mna').value='';G('mpr').value='Medium';G('mst').value='Not Started';
-  G('mty').value='';G('mus').value=me||'';G('mdt').value='';G('mur').value='';
+  G('mty').value='';G('mus').value=me||'';G('mdt').value='';resetUploader();
   G('mo').style.display='flex';setTimeout(()=>G('mna').focus(),50);
 }
 function openEdit(id){
   const iss=issues.find(i=>i.id===id);if(!iss)return;
   editId=id;bcast(id);G('mtitle').textContent='Edit Issue';
   G('mna').value=iss.name||'';G('mpr').value=iss.priority||'Medium';G('mst').value=iss.status||'Not Started';
-  G('mty').value=iss.type||'';G('mus').value=iss.user||'';G('mdt').value=iss.details||'';G('mur').value=iss.url||'';
+  G('mty').value=iss.type||'';G('mus').value=iss.user||'';G('mdt').value=iss.details||'';loadExistingUrls(iss.url||'');
   G('mo').style.display='flex';setTimeout(()=>G('mna').focus(),50);
 }
 async function sm(){
-  const data={name:G('mna').value.trim(),priority:G('mpr').value,status:G('mst').value,type:G('mty').value,user:G('mus').value.trim(),details:G('mdt').value.trim(),url:G('mur').value.trim()};
+  const data={name:G('mna').value.trim(),priority:G('mpr').value,status:G('mst').value,type:G('mty').value,user:G('mus').value.trim(),details:G('mdt').value.trim(),url:pendingUrls.join(',')};
   if(!data.name){toast('Description required','warn');return}
   if(editId){
     const idx=issues.findIndex(i=>i.id===editId);if(idx>=0)Object.assign(issues[idx],data);
@@ -693,6 +720,115 @@ function toast(msg,type=''){
   el.className='tst'+(type?' '+type:'');el.textContent=msg;
   G('ts').appendChild(el);setTimeout(()=>el.remove(),3000);
 }
+
+/* CLOUDINARY UPLOAD */
+const CL_CLOUD = 'dahl3grgy';
+const CL_PRESET = 'qa_tracker_unsigned'; // we use unsigned upload with a preset
+const CL_FOLDER = 'YallaFix QA';
+const CL_KEY    = '987934344424887';
+
+// pendingUrls stores urls for the current modal session
+let pendingUrls = [];
+
+function resetUploader(){
+  pendingUrls=[];
+  const thumbs=document.getElementById('upl-thumbs');
+  const hint=document.getElementById('upl-hint');
+  const prog=document.getElementById('upl-progress');
+  if(thumbs)thumbs.innerHTML='';
+  if(hint)hint.style.display='flex';
+  if(prog)prog.innerHTML='';
+  const fi=document.getElementById('upl-file');
+  if(fi)fi.value='';
+}
+
+function loadExistingUrls(urlStr){
+  pendingUrls=[];
+  const thumbs=document.getElementById('upl-thumbs');
+  const hint=document.getElementById('upl-hint');
+  if(!thumbs)return;
+  thumbs.innerHTML='';
+  const urls=(urlStr||'').split(',').map(u=>u.trim()).filter(Boolean);
+  urls.forEach(u=>{pendingUrls.push(u);addThumb(u)});
+  if(hint)hint.style.display=urls.length?'none':'flex';
+}
+
+function addThumb(url){
+  const thumbs=document.getElementById('upl-thumbs');
+  const hint=document.getElementById('upl-hint');
+  if(!thumbs)return;
+  const wrap=document.createElement('div');wrap.className='upl-thumb-wrap';wrap.dataset.url=url;
+  wrap.innerHTML=`<img class="upl-thumb" src="${esc(url)}" onclick="event.stopPropagation();olb('${esc(url)}')" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2264%22 height=%2264%22><rect fill=%22%23f3f4f6%22 width=%2264%22 height=%2264%22/></svg>'">
+    <div class="upl-rm" onclick="event.stopPropagation();removeThumb(this,'${esc(url)}')">&#x2715;</div>`;
+  thumbs.appendChild(wrap);
+  if(hint)hint.style.display='none';
+}
+
+function removeThumb(btn,url){
+  pendingUrls=pendingUrls.filter(u=>u!==url);
+  btn.closest('.upl-thumb-wrap').remove();
+  const thumbs=document.getElementById('upl-thumbs');
+  const hint=document.getElementById('upl-hint');
+  if(hint&&thumbs&&thumbs.children.length===0)hint.style.display='flex';
+}
+
+async function handleFiles(files){
+  const arr=[...files];
+  for(const file of arr){
+    await uploadOne(file);
+  }
+}
+
+async function uploadOne(file){
+  const prog=document.getElementById('upl-progress');
+  // Add progress row
+  const pid='p_'+Math.random().toString(36).slice(2);
+  const row=document.createElement('div');row.className='upl-pitem';row.id=pid;
+  row.innerHTML=`<span class="upl-pname">${esc(file.name)}</span><div class="upl-pbar-wrap"><div class="upl-pbar" style="width:0%" id="${pid}bar"></div></div><span id="${pid}st">0%</span>`;
+  if(prog)prog.appendChild(row);
+
+  const fd=new FormData();
+  fd.append('file',file);
+  fd.append('upload_preset','qa_tracker_unsigned');
+  fd.append('folder',CL_FOLDER);
+  fd.append('api_key',CL_KEY);
+
+  try{
+    await new Promise((resolve,reject)=>{
+      const xhr=new XMLHttpRequest();
+      xhr.open('POST',`https://api.cloudinary.com/v1_1/${CL_CLOUD}/image/upload`);
+      xhr.upload.onprogress=e=>{
+        if(e.lengthComputable){
+          const pct=Math.round(e.loaded/e.total*100);
+          const bar=document.getElementById(pid+'bar');
+          const st=document.getElementById(pid+'st');
+          if(bar)bar.style.width=pct+'%';
+          if(st)st.textContent=pct+'%';
+        }
+      };
+      xhr.onload=()=>{
+        if(xhr.status===200){
+          const res=JSON.parse(xhr.responseText);
+          const url=res.secure_url;
+          pendingUrls.push(url);
+          addThumb(url);
+          const st=document.getElementById(pid+'st');
+          if(st)st.textContent='Done';
+          setTimeout(()=>{const r=document.getElementById(pid);if(r)r.remove()},1200);
+          resolve();
+        }else{
+          const st=document.getElementById(pid+'st');
+          if(st)st.textContent='Failed';
+          toast('Upload failed: '+xhr.statusText,'err');
+          reject();
+        }
+      };
+      xhr.onerror=()=>{toast('Upload error','err');reject()};
+      xhr.send(fd);
+    });
+  }catch(e){}
+}
+
 </script>
 </body>
 </html>
