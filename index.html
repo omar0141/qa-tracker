@@ -475,7 +475,11 @@ function startPres(){
   window.addEventListener('beforeunload',()=>qdel('presence','id',uid));
 }
 async function pp(){
-  try{await qupsert('presence',{id:uid,name:me,color:myC,last_seen:new Date().toISOString()})}catch(e){}
+  try{
+    // Remove any stale sessions with the same name (same user logged in from another tab/device)
+    await fetch(SB+'/rest/v1/presence?name=eq.'+encodeURIComponent(me)+'&id=neq.'+encodeURIComponent(uid),{method:'DELETE',headers:H()});
+    await qupsert('presence',{id:uid,name:me,color:myC,last_seen:new Date().toISOString()});
+  }catch(e){}
 }
 async function pl(){
   try{
