@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QA Tracker</title>
 <style>
@@ -443,7 +446,8 @@ tbody tr.deleted-row .iname{text-decoration:line-through;color:var(--t3)}
 </div>
 <div id="ts"></div>
 
-<script>
+<script>// v20260614235632
+
 const SB='https://syzravryqjpmeiouoxtk.supabase.co';
 const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5enJhdnJ5cWpwbWVpb3VveHRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyNzY2MTQsImV4cCI6MjA4ODg1MjYxNH0.xrM9hYVULPFyLO8mCFkbprlSxwX2wsnP5zxyltgM_2o';
 const AVC=['#2563eb','#7c3aed','#0d9488','#db2777','#d97706','#16a34a','#4f46e5','#0891b2'];
@@ -1047,7 +1051,7 @@ function addThumb(url){
   const hint=document.getElementById('upl-hint');
   if(!thumbs)return;
   const wrap=document.createElement('div');wrap.className='upl-thumb-wrap';wrap.dataset.url=url;
-  wrap.innerHTML=`<img class="upl-thumb" src="${esc(url)}" onclick="event.stopPropagation();olb('${esc(url)}')" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2264%22 height=%2264%22><rect fill=%22%23f3f4f6%22 width=%2264%22 height=%2264%22/></svg>'">
+  wrap.innerHTML=`<img class="upl-thumb" src="${esc(url)}" onclick="event.stopPropagation();olb('${esc(url)}')" onerror="this.style.background='#f3f4f6'">
     <div class="upl-rm" onclick="event.stopPropagation();removeThumb(this,'${esc(url)}')">&#x2715;</div>`;
   thumbs.appendChild(wrap);
   if(hint)hint.style.display='none';
