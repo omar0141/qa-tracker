@@ -803,10 +803,18 @@ function toast(msg,type=''){
 }
 
 /* CLOUDINARY UPLOAD */
-const CL_CLOUD = 'dahl3grgy';
-const CL_PRESET = 'qa_tracker_unsigned'; // we use unsigned upload with a preset
+const CL_CLOUD  = 'dahl3grgy';
 const CL_FOLDER = 'YallaFix QA';
 const CL_KEY    = '987934344424887';
+const CL_SECRET = 'LX6d3e7ZN8jVr_nkbuKPesK7FHM';
+
+// Generate SHA-1 signature in browser using Web Crypto
+async function clSign(params){
+  // Build string: sorted key=value pairs (excluding api_key, resource_type, cloud_name, file)
+  const str = Object.keys(params).sort().map(k=>k+'='+params[k]).join('&') + CL_SECRET;
+  const buf = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
 
 // pendingUrls stores urls for the current modal session
 let pendingUrls = [];
@@ -868,11 +876,16 @@ async function uploadOne(file){
   row.innerHTML=`<span class="upl-pname">${esc(file.name)}</span><div class="upl-pbar-wrap"><div class="upl-pbar" style="width:0%" id="${pid}bar"></div></div><span id="${pid}st">0%</span>`;
   if(prog)prog.appendChild(row);
 
+  const ts = Math.round(Date.now()/1000);
+  const sigParams = { folder: CL_FOLDER, timestamp: ts };
+  const signature = await clSign(sigParams);
+
   const fd=new FormData();
   fd.append('file',file);
-  fd.append('upload_preset','qa_tracker_unsigned');
   fd.append('folder',CL_FOLDER);
   fd.append('api_key',CL_KEY);
+  fd.append('timestamp',ts);
+  fd.append('signature',signature);
 
   try{
     await new Promise((resolve,reject)=>{
