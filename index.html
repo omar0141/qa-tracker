@@ -82,8 +82,8 @@ hr.ld{border:none;border-top:1px solid var(--bd);margin:28px 0}
 /* SUBBAR */
 .sub{height:40px;border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 20px;background:var(--su);overflow-x:auto;gap:0}
 .sub::-webkit-scrollbar{display:none}
-.ft{display:flex;align-items:center;gap:4px;padding:0 10px;height:40px;font-size:12px;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;transition:color .1s,border-color .15s;user-select:none}
-.ft:hover{color:var(--t2)}
+.ft{display:flex;align-items:center;gap:4px;padding:0 10px;height:40px;font-size:12px;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;transition:color .1s,border-color .15s,background .1s;user-select:none;border-radius:0}
+.ft:hover{color:var(--t2);background:var(--hv)}
 .ft.active{color:var(--tx);border-bottom-color:var(--tx);font-weight:500}
 .ftc{font-size:10px;background:var(--hv);border-radius:100px;padding:1px 5px;color:var(--t3);font-weight:400}
 .ft.active .ftc{background:var(--bd);color:var(--t2)}
@@ -372,7 +372,7 @@ const SEED=[
 
 let me=null,uid=null,myC=null;
 let issues=[],online={},editing={};
-let sK=null,sD=1,vF='all',tF='all',selId=null,editId=null;
+let sK=null,sD=1,vF='all',activeFilters=new Set(),selId=null,editId=null;
 const cmap={};
 const G=id=>document.getElementById(id);
 const ini=n=>(n||'?').trim().split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2);
@@ -510,9 +510,13 @@ function filtered(){
     const VM={High:'priority',Medium:'priority',Low:'priority','In Progress':'status','Not Started':'status',Done:'status',Omar:'user',Mohamed:'user'};
     const f=VM[vF];if(f)d=d.filter(i=>(i[f]||'')===vF);
   }
-  if(tF!=='all'){
-    if(['Client','Partner','CPanel'].includes(tF))d=d.filter(i=>(i.type||'').includes(tF));
-    else d=d.filter(i=>i.priority===tF||i.status===tF);
+  if(activeFilters.size>0){
+    d=d.filter(i=>{
+      return [...activeFilters].every(f=>{
+        if(['Client','Partner','CPanel'].includes(f)) return (i.type||'').includes(f);
+        return i.priority===f||i.status===f;
+      });
+    });
   }
   if(sK&&sK!=='idx')d.sort((a,b)=>{const av=(a[sK]||'').toLowerCase(),bv=(b[sK]||'').toLowerCase();return av<bv?-sD:av>bv?sD:0});
   return d;
@@ -596,14 +600,14 @@ function openDP(id){
   G('dpeb').dataset.id=id;
   const back=G('dpback');
   back.style.display='block';
-  requestAnimationFrame(()=>{ back.classList.add('open'); G('dp').classList.add('open'); });
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{ back.classList.add('open'); G('dp').classList.add('open'); }));
 }
 function cp2(){
   selId=null;
   const back=G('dpback');
   G('dp').classList.remove('open');
   back.classList.remove('open');
-  setTimeout(()=>{ back.style.display='none'; },280);
+  setTimeout(()=>{ if(!G('dp').classList.contains('open')) back.style.display='none'; },300);
   rt();
 }
 function efp(){
@@ -622,7 +626,26 @@ function sv(val,el){
   G('tbt').textContent=L[val]||val;rt();
 }
 function st(val,el){
-  tF=val;document.querySelectorAll('.ft').forEach(b=>b.classList.remove('active'));el.classList.add('active');rt();
+  if(val==='all'){
+    activeFilters.clear();
+    document.querySelectorAll('.ft').forEach(b=>b.classList.remove('active'));
+    document.querySelector('.ft').classList.add('active');
+  }else{
+    // Remove 'All' active state
+    document.querySelector('.ft').classList.remove('active');
+    if(activeFilters.has(val)){
+      activeFilters.delete(val);
+      el.classList.remove('active');
+    }else{
+      activeFilters.add(val);
+      el.classList.add('active');
+    }
+    // If nothing selected, go back to all
+    if(activeFilters.size===0){
+      document.querySelector('.ft').classList.add('active');
+    }
+  }
+  rt();
 }
 function sb2(k){if(k==='idx'){sK=null;rt();return}if(sK===k)sD*=-1;else{sK=k;sD=1}rt()}
 
