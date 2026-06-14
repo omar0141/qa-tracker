@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QA Tracker</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#fafafa;--su:#fff;--hv:#f4f4f5;--bd:#e4e4e7;--bd2:#d1d1d6;
+  --tx:#09090b;--t2:#52525b;--t3:#a1a1aa;
+  --ac:#2563eb;--acb:#eff6ff;--act:#1d4ed8;
+  --r4:4px;--r6:6px;--r10:10px;
+  --f:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;
+}
+body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased}
+
+/* LOGIN */
+#lo{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999}
+.lw{width:360px}
+.lm{font-size:13px;font-weight:600;margin-bottom:40px;display:flex;align-items:center;gap:8px}
+.lmd{width:8px;height:8px;border-radius:50%;background:var(--ac)}
+.lw h1{font-size:22px;font-weight:700;letter-spacing:-.03em;margin-bottom:6px;line-height:1.2}
+.lw p{font-size:13px;color:var(--t2);margin-bottom:28px}
+.lw input{display:block;width:100%;border:1px solid var(--bd2);border-radius:var(--r6);padding:9px 12px;font-size:14px;font-family:var(--f);color:var(--tx);background:var(--su);outline:none;margin-bottom:10px;transition:border-color .15s,box-shadow .15s}
+.lw input:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.lw button{width:100%;background:var(--tx);color:#fff;border:none;border-radius:var(--r6);padding:9px 16px;font-size:13px;font-weight:600;font-family:var(--f);cursor:pointer;letter-spacing:-.01em;transition:opacity .15s}
+.lw button:hover{opacity:.85}
+hr.ld{border:none;border-top:1px solid var(--bd);margin:28px 0}
+.lh{font-size:11px;color:var(--t3);text-align:center}
+
+/* APP */
+#app{display:none}
+.sb{position:fixed;left:0;top:0;bottom:0;width:220px;background:var(--su);border-right:1px solid var(--bd);display:flex;flex-direction:column;z-index:50}
+.sbh{padding:16px 16px 12px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px}
+.sblo{width:22px;height:22px;border-radius:5px;background:var(--tx);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sblo svg{width:12px;height:12px}
+.sbn{font-size:13px;font-weight:600;letter-spacing:-.02em}
+.sbp{font-size:11px;color:var(--t3)}
+.sbs{padding:8px 8px 0}
+.sbl{font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;padding:0 8px;margin-bottom:4px}
+.si{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:var(--r4);font-size:13px;color:var(--t2);cursor:pointer;transition:background .1s,color .1s;user-select:none}
+.si:hover{background:var(--hv);color:var(--tx)}
+.si.active{background:var(--hv);color:var(--tx);font-weight:500}
+.si .ic{font-size:14px;width:16px;text-align:center;flex-shrink:0;color:var(--t3)}
+.si.active .ic{color:var(--tx)}
+.sc{margin-left:auto;font-size:11px;font-weight:500;background:var(--hv);border-radius:100px;padding:1px 6px;color:var(--t2);min-width:20px;text-align:center}
+.sbsp{flex:1}
+.sbft{padding:12px;border-top:1px solid var(--bd)}
+.mec{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:var(--r4)}
+.mav{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}
+.mn{font-size:12px;font-weight:500}
+.mr{font-size:11px;color:var(--t3)}
+
+/* MAIN */
+.main{margin-left:220px;min-height:100vh;display:flex;flex-direction:column;transition:margin-right .2s}
+.main.po{margin-right:400px}
+.tb{height:48px;border-bottom:1px solid var(--bd);background:var(--su);display:flex;align-items:center;padding:0 20px;position:sticky;top:0;z-index:40}
+.tbt{font-size:13px;font-weight:600;letter-spacing:-.02em;flex:1}
+.tba{display:flex;align-items:center;gap:6px}
+.btn2{display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:var(--r4);font-size:12px;font-weight:500;font-family:var(--f);cursor:pointer;transition:background .1s;border:1px solid transparent;background:transparent;color:var(--t2);white-space:nowrap}
+.btn2:hover{background:var(--hv);color:var(--tx);border-color:var(--bd)}
+.btn2.pr{background:var(--tx);color:#fff;border-color:var(--tx)}
+.btn2.pr:hover{opacity:.85;background:var(--tx)}
+.os{display:flex;align-items:center;gap:2px;margin-right:8px}
+.oa{width:24px;height:24px;border-radius:50%;border:2px solid var(--su);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;margin-left:-4px;cursor:default;position:relative}
+.oa:first-child{margin-left:0}
+.oat{position:absolute;bottom:calc(100% + 5px);left:50%;transform:translateX(-50%);background:var(--tx);color:#fff;font-size:11px;padding:3px 7px;border-radius:4px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s;z-index:100}
+.oa:hover .oat{opacity:1}
+.cp{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t3);padding:4px 8px;border-radius:100px;border:1px solid var(--bd)}
+.cpdot{width:6px;height:6px;border-radius:50%;background:var(--bd2);transition:background .3s}
+.cpdot.live{background:#22c55e}
+.cpdot.err{background:#ef4444}
+
+/* STATS */
+.ss{display:flex;align-items:center;height:36px;border-bottom:1px solid var(--bd);padding:0 20px;background:var(--bg)}
+.si2{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t3);padding-right:16px;margin-right:16px;border-right:1px solid var(--bd)}
+.si2:last-child{border-right:none}
+.si2 strong{font-size:13px;font-weight:600;color:var(--tx)}
+.sdot{width:6px;height:6px;border-radius:50%}
+
+/* SUBBAR */
+.sub{height:40px;border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 20px;background:var(--su);overflow-x:auto;gap:0}
+.sub::-webkit-scrollbar{display:none}
+.ft{display:flex;align-items:center;gap:4px;padding:0 10px;height:40px;font-size:12px;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;transition:color .1s,border-color .15s;user-select:none}
+.ft:hover{color:var(--t2)}
+.ft.active{color:var(--tx);border-bottom-color:var(--tx);font-weight:500}
+.ftc{font-size:10px;background:var(--hv);border-radius:100px;padding:1px 5px;color:var(--t3);font-weight:400}
+.ft.active .ftc{background:var(--bd);color:var(--t2)}
+.sep{width:1px;background:var(--bd);height:18px;margin:0 4px;flex-shrink:0}
+.sr{margin-left:auto;display:flex;align-items:center;gap:6px;border:1px solid var(--bd);border-radius:var(--r4);padding:4px 8px;background:var(--su);transition:border-color .15s;flex-shrink:0}
+.sr:focus-within{border-color:var(--ac)}
+.sr span{font-size:12px;color:var(--t3)}
+.sr input{border:none;outline:none;background:none;font-size:12px;font-family:var(--f);color:var(--tx);width:150px}
+.sr input::placeholder{color:var(--t3)}
+
+/* TABLE */
+.tw{flex:1}
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+col.c0{width:40px}col.c1{width:auto}col.c2{width:108px}col.c3{width:128px}col.c4{width:120px}col.c5{width:108px}col.c6{width:88px}
+thead tr{border-bottom:1px solid var(--bd)}
+thead th{text-align:left;padding:0 12px;height:36px;font-size:11px;font-weight:500;color:var(--t3);letter-spacing:.02em;cursor:pointer;user-select:none;white-space:nowrap;background:var(--su);position:sticky;top:84px;z-index:30;border-bottom:1px solid var(--bd)}
+thead th:hover{color:var(--t2)}
+thead th.ths{color:var(--tx)}
+.sa{margin-left:3px;opacity:.5}
+tbody tr{border-bottom:1px solid var(--bd);transition:background .08s;cursor:pointer}
+tbody tr:hover{background:var(--hv)}
+tbody tr.sel{background:#eff6ff}
+tbody tr.sel td:first-child{border-left:2px solid var(--ac)}
+tbody tr.rem{background:#f0f9ff}
+tbody td{padding:0 12px;height:40px;vertical-align:middle;overflow:hidden}
+td.tdn{height:auto;padding:10px 12px}
+.tidx{color:var(--t3);font-size:11px;font-weight:500}
+.iname{font-size:13px;color:var(--tx);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.eb{display:inline-flex;align-items:center;gap:4px;margin-top:4px;padding:2px 6px;background:var(--acb);border-radius:3px;font-size:10px;font-weight:500;color:var(--act)}
+.ebd{width:5px;height:5px;border-radius:50%;background:var(--ac);animation:ebp 1.2s infinite}
+@keyframes ebp{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* INLINE SELECTS */
+.sc2{position:relative;display:inline-flex;align-items:center}
+.sc2 select{-webkit-appearance:none;appearance:none;border:none;outline:none;cursor:pointer;font-family:var(--f);font-size:11px;font-weight:600;padding:3px 18px 3px 7px;border-radius:3px;letter-spacing:.01em;transition:opacity .1s}
+.sc2 select:hover{opacity:.8}
+.sc2::after{content:'\25BE';position:absolute;right:5px;font-size:9px;pointer-events:none;opacity:.6}
+.ph select{background:#fff1f2;color:#9f1239;border:1px solid #fecdd3}
+.pm select{background:#fefce8;color:#713f12;border:1px solid #fef08a}
+.pl select{background:#f0fdf4;color:#14532d;border:1px solid #bbf7d0}
+.sn select{background:#fafafa;color:#52525b;border:1px solid #e4e4e7}
+.sp select{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+.sd select{background:#f0fdf4;color:#14532d;border:1px solid #bbf7d0}
+.sq select{background:#fff7ed;color:#7c2d12;border:1px solid #fed7aa}
+.tc select{background:#eff6ff;color:#1d4ed8;border:1px solid #c7d2fe}
+.tp select{background:#fdf2f8;color:#831843;border:1px solid #fbcfe8}
+.tk select{background:#f0fdfa;color:#134e4a;border:1px solid #99f6e4}
+.tm select{background:#f3f4f6;color:#374151;border:1px solid #e5e7eb}
+
+/* USER */
+.uc{display:flex;align-items:center;gap:6px}
+.uav{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0}
+.un{font-size:12px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* THUMBNAILS */
+.thumbs{display:flex;gap:4px;flex-wrap:wrap}
+.thumb{width:28px;height:28px;border-radius:3px;object-fit:cover;cursor:pointer;border:1px solid var(--bd);transition:transform .15s,box-shadow .15s;display:block}
+.thumb:hover{transform:scale(1.12);box-shadow:0 2px 8px rgba(0,0,0,.15);z-index:1;position:relative}
+
+/* DETAIL PANEL */
+.dp{position:fixed;right:0;top:0;bottom:0;width:400px;background:var(--su);border-left:1px solid var(--bd);z-index:60;display:none;flex-direction:column;overflow:hidden;box-shadow:-4px 0 20px rgba(0,0,0,.05)}
+.dp.open{display:flex}
+.dph{padding:16px 20px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.dph h3{font-size:13px;font-weight:600;letter-spacing:-.01em}
+.dpc{width:26px;height:26px;border-radius:var(--r4);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--t3);font-size:13px;transition:background .1s,color .1s;border:none;background:none}
+.dpc:hover{background:var(--hv);color:var(--tx)}
+.dpb{flex:1;overflow-y:auto;padding:20px}
+.dpb::-webkit-scrollbar{width:4px}
+.dpb::-webkit-scrollbar-thumb{background:var(--bd);border-radius:2px}
+.dpl{font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
+.dpv{font-size:13px;color:var(--tx);line-height:1.5;margin-bottom:16px}
+.dpv.m{color:var(--t2)}
+.dp-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.dpimgs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;margin-bottom:16px}
+.dpimg{width:100%;border-radius:var(--r6);object-fit:cover;cursor:pointer;border:1px solid var(--bd);aspect-ratio:16/9;transition:opacity .15s;display:block}
+.dpimg:hover{opacity:.85}
+.dpft{padding:14px 20px;border-top:1px solid var(--bd);display:flex;gap:8px;flex-shrink:0;background:var(--bg)}
+.dpft .btn{flex:1;text-align:center}
+
+/* LIGHTBOX */
+#lb{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9000;display:none;align-items:center;justify-content:center;cursor:zoom-out}
+#lb.open{display:flex}
+#lb img{max-width:92vw;max-height:92vh;object-fit:contain;border-radius:var(--r6)}
+#lbc{position:fixed;top:16px;right:20px;color:#fff;font-size:22px;cursor:pointer;background:none;border:none;font-family:var(--f);opacity:.6;transition:opacity .15s;line-height:1}
+#lbc:hover{opacity:1}
+
+/* MODAL */
+.mb{position:fixed;inset:0;background:rgba(0,0,0,.24);display:flex;align-items:flex-start;justify-content:center;padding-top:80px;z-index:200}
+.mp{background:var(--su);border:1px solid var(--bd);border-radius:var(--r10);width:520px;max-width:94vw;box-shadow:0 8px 40px rgba(0,0,0,.12),0 2px 8px rgba(0,0,0,.06);overflow:hidden}
+.mt{padding:18px 20px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
+.mt h2{font-size:14px;font-weight:600;letter-spacing:-.02em}
+.mc{width:26px;height:26px;border-radius:var(--r4);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--t3);font-size:13px;transition:background .1s,color .1s;border:none;background:none}
+.mc:hover{background:var(--hv);color:var(--tx)}
+.mbd{padding:18px 20px}
+.mf{margin-bottom:14px}
+.mf:last-child{margin-bottom:0}
+.mf label{display:block;font-size:11px;font-weight:500;color:var(--t2);margin-bottom:5px;letter-spacing:.02em}
+.mf input,.mf select,.mf textarea{width:100%;font-family:var(--f);font-size:13px;color:var(--tx);background:var(--su);border:1px solid var(--bd);border-radius:var(--r4);padding:7px 10px;outline:none;transition:border-color .15s,box-shadow .15s;-webkit-appearance:none;appearance:none}
+.mf input:focus,.mf select:focus,.mf textarea:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+.mf textarea{resize:vertical;min-height:60px;line-height:1.5}
+.r2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mft{padding:14px 20px;border-top:1px solid var(--bd);display:flex;justify-content:flex-end;gap:8px;background:var(--bg)}
+.btn{font-family:var(--f);font-size:12px;font-weight:500;cursor:pointer;border-radius:var(--r4);padding:6px 14px;transition:all .1s;border:1px solid transparent}
+.bg2{background:var(--su);border-color:var(--bd);color:var(--t2)}
+.bg2:hover{background:var(--hv);color:var(--tx)}
+.bs{background:var(--tx);color:#fff;border-color:var(--tx)}
+.bs:hover{opacity:.85}
+
+/* TOAST */
+#ts{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:6px;z-index:9999}
+.tst{background:var(--tx);color:#fff;padding:8px 14px;border-radius:var(--r6);font-size:12px;font-weight:500;display:flex;align-items:center;gap:8px;animation:tIn .2s ease;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+.tst.warn{background:#92400e}
+.tst.err{background:#991b1b}
+@keyframes tIn{from{transform:translateY(8px);opacity:0}to{transform:translateY(0);opacity:1}}
+.er td{padding:60px 20px;text-align:center;color:var(--t3);font-size:13px}
+</style>
+</head>
+<body>
+
+<div id="lo">
+  <div class="lw">
+    <div class="lm"><div class="lmd"></div>QA Tracker</div>
+    <h1>Sign in to<br>your workspace</h1>
+    <p>Enter your name to start tracking issues with your team.</p>
+    <input type="text" id="ni" placeholder="Your name" maxlength="40" autocomplete="off">
+    <button onclick="go()">Continue</button>
+    <hr class="ld">
+    <p class="lh">syzravryqjpmeiouoxtk.supabase.co</p>
+  </div>
+</div>
+
+<div id="app">
+  <nav class="sb">
+    <div class="sbh">
+      <div class="sblo"><svg viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4" stroke="white" stroke-width="1.5"/><circle cx="6" cy="6" r="1.5" fill="white"/></svg></div>
+      <div><div class="sbn">QA Tracker</div><div class="sbp">YallaFix QA</div></div>
+    </div>
+    <div class="sbs" style="margin-top:8px">
+      <div class="sbl">Views</div>
+      <div class="si active" onclick="sv('all',this)"><span class="ic">&#8801;</span>All Issues<span class="sc" id="sca">0</span></div>
+      <div class="si" onclick="sv('High',this)"><span class="ic" style="color:#f87171">&#9679;</span>High Priority<span class="sc" id="sch">0</span></div>
+      <div class="si" onclick="sv('In Progress',this)"><span class="ic" style="color:#60a5fa">&#9680;</span>In Progress<span class="sc" id="scp">0</span></div>
+      <div class="si" onclick="sv('Not Started',this)"><span class="ic" style="color:#a1a1aa">&#9675;</span>Not Started<span class="sc" id="scn">0</span></div>
+      <div class="si" onclick="sv('Done',this)"><span class="ic" style="color:#4ade80">&#10003;</span>Done<span class="sc" id="scd">0</span></div>
+    </div>
+    <div class="sbs" style="margin-top:8px">
+      <div class="sbl">Team</div>
+      <div class="si" onclick="sv('Omar',this)"><span class="ic">&#9671;</span>Omar<span class="sc" id="sco">0</span></div>
+      <div class="si" onclick="sv('Mohamed',this)"><span class="ic">&#9671;</span>Mohamed<span class="sc" id="scm">0</span></div>
+    </div>
+    <div class="sbsp"></div>
+    <div class="sbft">
+      <div class="mec"><div class="mav" id="mav">?</div><div><div class="mn" id="mn">-</div><div class="mr">QA Engineer</div></div></div>
+    </div>
+  </nav>
+
+  <main class="main" id="ma">
+    <div class="tb">
+      <div class="tbt" id="tbt">All Issues</div>
+      <div class="tba">
+        <div class="os" id="os"></div>
+        <div class="cp"><div class="cpdot" id="cpd"></div><span id="cpt" style="font-size:11px;color:var(--t3)">Connecting</span></div>
+        <button class="btn2 pr" onclick="openAdd()">+ New Issue</button>
+      </div>
+    </div>
+    <div class="ss" id="ss"></div>
+    <div class="sub">
+      <div class="ft active" onclick="st('all',this)">All <span class="ftc" id="fa">0</span></div>
+      <div class="ft" onclick="st('High',this)">High <span class="ftc" id="fh">0</span></div>
+      <div class="ft" onclick="st('Medium',this)">Medium <span class="ftc" id="fm">0</span></div>
+      <div class="ft" onclick="st('Low',this)">Low <span class="ftc" id="fl">0</span></div>
+      <div class="sep"></div>
+      <div class="ft" onclick="st('Not Started',this)">Not Started <span class="ftc" id="fn">0</span></div>
+      <div class="ft" onclick="st('In Progress',this)">In Progress <span class="ftc" id="fi">0</span></div>
+      <div class="ft" onclick="st('Done',this)">Done <span class="ftc" id="fd">0</span></div>
+      <div class="ft" onclick="st('Need to discuss',this)">To Discuss <span class="ftc" id="fq">0</span></div>
+      <div class="sep"></div>
+      <div class="ft" onclick="st('Client',this)">Client <span class="ftc" id="fc">0</span></div>
+      <div class="ft" onclick="st('Partner',this)">Partner <span class="ftc" id="fp">0</span></div>
+      <div class="ft" onclick="st('CPanel',this)">CPanel <span class="ftc" id="fk">0</span></div>
+      <div class="sr" style="margin-left:auto;flex-shrink:0">
+        <span>&#8981;</span>
+        <input type="text" id="srq" placeholder="Search..." oninput="rt()">
+      </div>
+    </div>
+    <div class="tw">
+      <table>
+        <colgroup><col class="c0"><col class="c1"><col class="c2"><col class="c3"><col class="c4"><col class="c5"><col class="c6"></colgroup>
+        <thead>
+          <tr>
+            <th onclick="sb2('idx')">#</th>
+            <th onclick="sb2('name')" id="thn">Issue</th>
+            <th onclick="sb2('priority')" id="thp">Priority</th>
+            <th onclick="sb2('status')" id="ths2">Status</th>
+            <th onclick="sb2('type')" id="tht">Type</th>
+            <th onclick="sb2('user')" id="thu">Assignee</th>
+            <th>Files</th>
+          </tr>
+        </thead>
+        <tbody id="tb"></tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<!-- DETAIL PANEL -->
+<div class="dp" id="dp">
+  <div class="dph"><h3>Issue Detail</h3><button class="dpc" onclick="cp2()">&#x2715;</button></div>
+  <div class="dpb" id="dpb"></div>
+  <div class="dpft">
+    <button class="btn bg2" onclick="cp2()">Close</button>
+    <button class="btn bs" id="dpeb" onclick="efp()">Edit Issue</button>
+  </div>
+</div>
+
+<!-- LIGHTBOX -->
+<div id="lb" onclick="clb()">
+  <button id="lbc" onclick="clb()">&#x2715;</button>
+  <img id="lbi" src="" alt="attachment">
+</div>
+
+<!-- MODAL -->
+<div id="mo" style="display:none" class="mb" onclick="if(event.target===this)cm()">
+  <div class="mp">
+    <div class="mt"><h2 id="mtitle">New Issue</h2><button class="mc" onclick="cm()">&#x2715;</button></div>
+    <div class="mbd">
+      <div class="mf"><label>Description</label><textarea id="mna" rows="3" placeholder="Describe the issue..."></textarea></div>
+      <div class="r2">
+        <div class="mf"><label>Priority</label>
+          <select id="mpr"><option>High</option><option selected>Medium</option><option>Low</option></select></div>
+        <div class="mf"><label>Status</label>
+          <select id="mst"><option>Not Started</option><option>In Progress</option><option>Done</option><option>Need to discuss</option></select></div>
+      </div>
+      <div class="r2">
+        <div class="mf"><label>Type</label>
+          <select id="mty">
+            <option value="">-- Select type --</option>
+            <option value="Client">Client</option>
+            <option value="Partner">Partner</option>
+            <option value="CPanel">CPanel</option>
+            <option value="Client, Partner">Client + Partner</option>
+            <option value="Client, CPanel">Client + CPanel</option>
+            <option value="Partner, CPanel">Partner + CPanel</option>
+          </select></div>
+        <div class="mf"><label>Assignee</label><input id="mus" placeholder="Name..."></div>
+      </div>
+      <div class="mf"><label>Details</label><textarea id="mdt" rows="2" placeholder="Additional context..."></textarea></div>
+      <div class="mf"><label>Attachment URLs (comma-separated)</label><input id="mur" placeholder="https://..."></div>
+    </div>
+    <div class="mft">
+      <button class="btn bg2" onclick="cm()">Cancel</button>
+      <button class="btn bs" onclick="sm()">Save issue</button>
+    </div>
+  </div>
+</div>
+<div id="ts"></div>
+
+<script>
+const SB='https://syzravryqjpmeiouoxtk.supabase.co';
+const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5enJhdnJ5cWpwbWVpb3VveHRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyNzY2MTQsImV4cCI6MjA4ODg1MjYxNH0.xrM9hYVULPFyLO8mCFkbprlSxwX2wsnP5zxyltgM_2o';
+const AVC=['#2563eb','#7c3aed','#0d9488','#db2777','#d97706','#16a34a','#4f46e5','#0891b2'];
+const SEED=[
+  {name:"Service fees modification only takes effect when the app is closed, not while it is open",priority:"Medium",status:"Not Started",details:"",type:"Client",user:"Omar",url:""},
+  {name:"Fix description and type for service",priority:"Medium",status:"Not Started",details:"",type:"CPanel",user:"Mohamed",url:""},
+  {name:"Service fees should take effect when creating a new order, not only after closing the app",priority:"Medium",status:"Not Started",details:"",type:"Client",user:"Omar",url:""},
+  {name:"5 notifications for the same new order in TA app",priority:"High",status:"Not Started",details:"",type:"Partner",user:"Mohamed",url:""},
+  {name:"Battery price differs before and after placing the order",priority:"High",status:"Not Started",details:"",type:"Client",user:"Mohamed",url:"https://res.cloudinary.com/dahl3grgy/image/upload/v1781476155/6c987027-3b4b-4c76-8481-57f8b5a849e6.png,https://res.cloudinary.com/dahl3grgy/image/upload/v1781476198/681535cb-6598-4ef8-b668-fe7a08edbc73.png"},
+  {name:"Phone number hidden before TA accepts, but address and location must stay visible",priority:"High",status:"Not Started",details:"Did not wait to catch location",type:"Partner",user:"Omar",url:"https://res.cloudinary.com/dahl3grgy/image/upload/v1781476250/4842e0b3-3cfa-4b20-a2ec-f6083818cdcd.png"},
+  {name:"TA cannot cancel an order unless accepted it first and called the customer",priority:"High",status:"Not Started",details:"",type:"Partner",user:"Omar",url:"https://res.cloudinary.com/dahl3grgy/image/upload/v1781476289/c57520cf-8268-4fa7-83c9-e23ae44bb877.png"},
+  {name:"Cancellation reason note not visible in CPanel",priority:"Medium",status:"Not Started",details:"",type:"CPanel",user:"Mohamed",url:"https://res.cloudinary.com/dahl3grgy/image/upload/v1781476334/3162577b-42f8-48b4-950d-5a5f2a3f4678.png"},
+  {name:"Service type and level need updating; client address not visible",priority:"Medium",status:"Not Started",details:"Order submitted quickly before location loaded on map",type:"CPanel",user:"Mohamed",url:"https://res.cloudinary.com/dahl3grgy/image/upload/v1781476368/ceddeb33-8c84-4cfc-8f65-0b6d3dcb054f.png"},
+  {name:"Timer element overflows outside its container",priority:"High",status:"Not Started",details:"",type:"Client, Partner",user:"Omar",url:"https://res.cloudinary.com/dahl3grgy/image/upload/v1781476391/68cfcb78-a5bf-496f-b668-c946b4be8247.png"},
+  {name:"Fees set to 100,000 but showing as 1,000 - same issue with discount",priority:"High",status:"Not Started",details:"",type:"CPanel",user:"Mohamed",url:"https://res.cloudinary.com/dahl3grgy/image/upload/v1781476418/518f188a-94b9-45a3-9f54-dea4e7b938f0.png"},
+  {name:"VIP showing estimated fix time field, it should not, and it is empty",priority:"High",status:"Not Started",details:"",type:"Client, Partner",user:"Omar",url:"https://res.cloudinary.com/dahl3grgy/image/upload/v1781476446/085a4c5c-3ddc-40ba-bac7-621b304471e1.png"},
+  {name:"Partner orders list has no sorting, especially by date",priority:"Medium",status:"Not Started",details:"",type:"CPanel",user:"Mohamed",url:"https://res.cloudinary.com/dahl3grgy/image/upload/v1781476476/4e86f763-bca2-4771-8f79-369e78b8389e.png"},
+  {name:"Unblock partner button missing",priority:"High",status:"Not Started",details:"",type:"CPanel",user:"Mohamed",url:"https://res.cloudinary.com/dahl3grgy/image/upload/v1781476523/18caff39-be46-48a9-a64a-fb6028ca31e3.png"},
+  {name:"Order limit message truncates, full text needs to wrap",priority:"Low",status:"Not Started",details:"",type:"Client",user:"Omar",url:"https://res.cloudinary.com/dahl3grgy/image/upload/v1781476542/85570099-0a12-43dc-8b1e-8ad7e073f296.png"},
+  {name:"Ranking info only shows to TA, should also appear to CA",priority:"High",status:"Not Started",details:"",type:"Client, Partner",user:"Omar",url:""},
+  {name:"Add info icon next to ranking so CA can view LCD type explanation image",priority:"High",status:"Need to discuss",details:"",type:"Client",user:"Mohamed",url:""},
+];
+
+let me=null,uid=null,myC=null;
+let issues=[],online={},editing={};
+let sK=null,sD=1,vF='all',tF='all',selId=null,editId=null;
+const cmap={};
+const G=id=>document.getElementById(id);
+const ini=n=>(n||'?').trim().split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2);
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function uc(n){if(!cmap[n])cmap[n]=AVC[Object.keys(cmap).length%AVC.length];return cmap[n]}
+
+G('ni').addEventListener('keydown',e=>{if(e.key==='Enter')go()});
+function go(){
+  const n=G('ni').value.trim();if(!n)return;
+  me=n;uid='u_'+Math.random().toString(36).slice(2,9);
+  myC=AVC[Math.floor(Math.random()*AVC.length)];cmap[n]=myC;
+  G('lo').style.display='none';G('app').style.display='block';
+  G('mav').textContent=ini(n);G('mav').style.background=myC;G('mn').textContent=n;
+  loadLocal();renderAll();initSB();
+}
+
+/* SUPABASE via plain fetch - avoids DataCloneError from postMessage in supabase-js */
+const H=()=>({'Content-Type':'application/json','apikey':KEY,'Authorization':'Bearer '+KEY});
+async function qget(tbl,qs){
+  const r=await fetch(SB+'/rest/v1/'+tbl+'?'+qs,{headers:{...H(),'Prefer':'return=representation'}});
+  if(!r.ok)throw new Error((await r.json()).message||r.statusText);
+  return r.json();
+}
+async function qpost(tbl,data){
+  const r=await fetch(SB+'/rest/v1/'+tbl,{method:'POST',headers:{...H(),'Prefer':'return=representation'},body:JSON.stringify(data)});
+  if(!r.ok)throw new Error((await r.json()).message||r.statusText);
+  return r.json();
+}
+async function qpatch(tbl,id,data){
+  const r=await fetch(SB+'/rest/v1/'+tbl+'?id=eq.'+id,{method:'PATCH',headers:{...H(),'Prefer':'return=representation'},body:JSON.stringify(data)});
+  if(!r.ok)throw new Error((await r.json()).message||r.statusText);
+  return r.json();
+}
+async function qupsert(tbl,data){
+  const r=await fetch(SB+'/rest/v1/'+tbl+'?on_conflict=id',{method:'POST',headers:{...H(),'Prefer':'return=representation,resolution=merge-duplicates'},body:JSON.stringify(data)});
+  if(!r.ok)console.warn('upsert fail');
+}
+async function qdel(tbl,col,val){
+  await fetch(SB+'/rest/v1/'+tbl+'?'+col+'=eq.'+encodeURIComponent(val),{method:'DELETE',headers:H()});
+}
+
+async function initSB(){
+  try{
+    await qget('issues','select=id&limit=1');
+    setConn(true);
+    await seedOrLoad();
+    startRT();
+    startPres();
+  }catch(e){setConn(false);toast('Connection failed: '+e.message,'err')}
+}
+
+function setConn(ok){
+  G('cpd').className='cpdot '+(ok?'live':'err');
+  G('cpt').textContent=ok?'Live':'Offline';
+}
+
+async function seedOrLoad(){
+  const data=await qget('issues','select=*&order=created_at');
+  if(data.length===0){const ins=await qpost('issues',SEED);issues=ins;}
+  else{issues=data;}
+  saveLocal();renderAll();
+}
+
+/* REALTIME via native WebSocket */
+let ws=null,wsT=null;
+function startRT(){
+  const url=SB.replace('https://','wss://')+'/realtime/v1/websocket?apikey='+KEY+'&vsn=1.0.0';
+  ws=new WebSocket(url);
+  ws.onopen=()=>{
+    ws.send(JSON.stringify({topic:'realtime:public:issues',event:'phx_join',payload:{config:{broadcast:{self:false},postgres_changes:[{event:'*',schema:'public',table:'issues'}]}},ref:'1'}));
+    ws.send(JSON.stringify({topic:'realtime:editing',event:'phx_join',payload:{config:{broadcast:{self:false}}},ref:'2'}));
+    wsT=setInterval(()=>ws.readyState===1&&ws.send(JSON.stringify({topic:'phoenix',event:'heartbeat',payload:{},ref:'hb'})),25000);
+  };
+  ws.onmessage=ev=>{
+    try{
+      const msg=JSON.parse(ev.data);
+      if(msg.event==='INSERT'){const r=msg.payload?.data?.record;if(r&&!issues.find(i=>i.id===r.id)){issues.push(r);toast('New issue added');saveLocal();renderAll();}}
+      else if(msg.event==='UPDATE'){const r=msg.payload?.data?.record;if(r){const i=issues.findIndex(x=>x.id===r.id);if(i>=0)issues[i]=r;saveLocal();renderAll();}}
+      else if(msg.event==='DELETE'){const r=msg.payload?.data?.old_record;if(r){issues=issues.filter(x=>x.id!==r.id);saveLocal();renderAll();}}
+      if(msg.event==='broadcast'&&msg.payload?.event==='editing'){
+        const p=msg.payload.payload;if(p.uid===uid)return;
+        editing[p.rowId]={name:p.name,color:p.color};
+        clearTimeout(editing['_t'+p.rowId]);
+        editing['_t'+p.rowId]=setTimeout(()=>{delete editing[p.rowId];rt()},5000);
+        rt();
+      }
+    }catch(e){}
+  };
+  ws.onclose=()=>{clearInterval(wsT);setTimeout(startRT,3000)};
+}
+function bcast(rowId){
+  if(!ws||ws.readyState!==1)return;
+  ws.send(JSON.stringify({topic:'realtime:editing',event:'broadcast',payload:{event:'editing',payload:{uid,name:me,color:myC,rowId}},ref:'e'+Date.now()}));
+}
+
+/* PRESENCE */
+function startPres(){
+  pp();setInterval(pp,8000);
+  pl();setInterval(pl,6000);
+  window.addEventListener('beforeunload',()=>qdel('presence','id',uid));
+}
+async function pp(){
+  try{await qupsert('presence',{id:uid,name:me,color:myC,last_seen:new Date().toISOString()})}catch(e){}
+}
+async function pl(){
+  try{
+    const cutoff=new Date(Date.now()-20000).toISOString();
+    await fetch(SB+'/rest/v1/presence?last_seen=lt.'+encodeURIComponent(cutoff),{method:'DELETE',headers:H()});
+    const data=await qget('presence','select=*');
+    online={};data.forEach(u=>{online[u.id]={name:u.name,color:u.color}});
+    renderOnline();
+  }catch(e){}
+}
+
+/* LOCAL */
+function loadLocal(){try{const s=localStorage.getItem('qa_v6');if(s)issues=JSON.parse(s);else{issues=SEED.map(i=>({...i,id:'l_'+Math.random().toString(36).slice(2)}));saveLocal()}}catch{issues=[]}}
+function saveLocal(){localStorage.setItem('qa_v6',JSON.stringify(issues))}
+
+/* RENDER */
+function renderAll(){rt();renderStats();renderCounts()}
+
+function renderOnline(){
+  G('os').innerHTML=Object.values(online).map(u=>`<div class="oa" style="background:${u.color}">${ini(u.name)}<span class="oat">${esc(u.name)}</span></div>`).join('');
+}
+
+function filtered(){
+  let d=[...issues];
+  const q=(G('srq')?.value||'').toLowerCase().trim();
+  if(q)d=d.filter(i=>['name','type','user','status','priority','details'].some(k=>(i[k]||'').toLowerCase().includes(q)));
+  if(vF!=='all'){
+    const VM={High:'priority',Medium:'priority',Low:'priority','In Progress':'status','Not Started':'status',Done:'status',Omar:'user',Mohamed:'user'};
+    const f=VM[vF];if(f)d=d.filter(i=>(i[f]||'')===vF);
+  }
+  if(tF!=='all'){
+    if(['Client','Partner','CPanel'].includes(tF))d=d.filter(i=>(i.type||'').includes(tF));
+    else d=d.filter(i=>i.priority===tF||i.status===tF);
+  }
+  if(sK&&sK!=='idx')d.sort((a,b)=>{const av=(a[sK]||'').toLowerCase(),bv=(b[sK]||'').toLowerCase();return av<bv?-sD:av>bv?sD:0});
+  return d;
+}
+
+function pC(p){return p==='High'?'ph':p==='Low'?'pl':'pm'}
+function stC(s){if(s==='In Progress')return'sp';if(s==='Done')return'sd';if(s==='Need to discuss')return'sq';return'sn'}
+function tyC(t){if(!t)return'tm';const l=t.toLowerCase();if(l.includes(','))return'tm';if(l==='client')return'tc';if(l==='partner')return'tp';if(l==='cpanel')return'tk';return'tm'}
+
+function rt(){
+  const data=filtered();
+  ['name','priority','status','type','user'].forEach(k=>{
+    const el=G('th'+k[0]);if(!el)return;
+    const L={name:'Issue',priority:'Priority',status:'Status',type:'Type',user:'Assignee'};
+    if(sK===k){el.classList.add('ths');el.innerHTML=L[k]+'<span class="sa">'+(sD===1?'&#8593;':'&#8595;')+'</span>'}
+    else{el.classList.remove('ths');el.textContent=L[k]}
+  });
+  const tb=G('tb');
+  if(!data.length){tb.innerHTML='<tr class="er"><td colspan="7">No issues match</td></tr>';return}
+  tb.innerHTML=data.map((iss,idx)=>{
+    const ed=editing[iss.id];
+    const color=uc(iss.user||'');
+    const urls=(iss.url||'').split(',').map(u=>u.trim()).filter(Boolean);
+    const thumbs=urls.map(u=>`<img class="thumb" src="${esc(u)}" onclick="event.stopPropagation();olb('${esc(u)}')" onerror="this.style.display='none'" loading="lazy">`).join('');
+    return`<tr class="${selId===iss.id?'sel':ed?'rem':''}" onclick="selRow('${iss.id}')">
+      <td><span class="tidx">${idx+1}</span></td>
+      <td class="tdn">
+        <div class="iname">${esc(iss.name||'')}</div>
+        ${ed?`<div class="eb"><div class="ebd"></div>${esc(ed.name)} is editing</div>`:''}
+      </td>
+      <td><div class="sc2 ${pC(iss.priority)}"><select onchange="upd('${iss.id}','priority',this.value)" onclick="event.stopPropagation()">${['High','Medium','Low'].map(v=>`<option${v===iss.priority?' selected':''}>${v}</option>`).join('')}</select></div></td>
+      <td><div class="sc2 ${stC(iss.status)}"><select onchange="upd('${iss.id}','status',this.value)" onclick="event.stopPropagation()">${['Not Started','In Progress','Done','Need to discuss'].map(v=>`<option${v===iss.status?' selected':''}>${v}</option>`).join('')}</select></div></td>
+      <td><div class="sc2 ${tyC(iss.type)}"><select onchange="upd('${iss.id}','type',this.value)" onclick="event.stopPropagation()">${['','Client','Partner','CPanel','Client, Partner','Client, CPanel','Partner, CPanel'].map(v=>`<option value="${v}"${v===iss.type?' selected':''}>${v||'--'}</option>`).join('')}</select></div></td>
+      <td><div class="uc"><div class="uav" style="background:${color}">${ini(iss.user||'?')}</div><span class="un">${esc(iss.user||'-')}</span></div></td>
+      <td>${thumbs?`<div class="thumbs">${thumbs}</div>`:''}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderStats(){
+  const t=issues.length,h=issues.filter(i=>i.priority==='High').length;
+  const ip=issues.filter(i=>i.status==='In Progress').length,dn=issues.filter(i=>i.status==='Done').length,di=issues.filter(i=>i.status==='Need to discuss').length;
+  G('ss').innerHTML=[{l:'Total',v:t,d:null},{l:'High priority',v:h,d:'#f87171'},{l:'In progress',v:ip,d:'#60a5fa'},{l:'Done',v:dn,d:'#4ade80'},{l:'To discuss',v:di,d:'#fb923c'}]
+    .map(s=>`<div class="si2">${s.d?`<div class="sdot" style="background:${s.d}"></div>`:''}<strong>${s.v}</strong>${s.l}</div>`).join('');
+}
+
+function renderCounts(){
+  const cn=fn=>issues.filter(fn).length;
+  const s=(id,n)=>{const e=G(id);if(e)e.textContent=n};
+  s('sca',issues.length);s('sch',cn(i=>i.priority==='High'));s('scp',cn(i=>i.status==='In Progress'));
+  s('scn',cn(i=>i.status==='Not Started'));s('scd',cn(i=>i.status==='Done'));
+  s('sco',cn(i=>(i.user||'').toLowerCase()==='omar'));s('scm',cn(i=>(i.user||'').toLowerCase()==='mohamed'));
+  s('fa',issues.length);s('fh',cn(i=>i.priority==='High'));s('fm',cn(i=>i.priority==='Medium'));s('fl',cn(i=>i.priority==='Low'));
+  s('fn',cn(i=>i.status==='Not Started'));s('fi',cn(i=>i.status==='In Progress'));s('fd',cn(i=>i.status==='Done'));s('fq',cn(i=>i.status==='Need to discuss'));
+  s('fc',cn(i=>(i.type||'').includes('Client')));s('fp',cn(i=>(i.type||'').includes('Partner')));s('fk',cn(i=>(i.type||'').includes('CPanel')));
+}
+
+/* DETAIL PANEL */
+function selRow(id){
+  if(selId===id){cp2();return}
+  selId=id;rt();openDP(id);
+}
+function openDP(id){
+  const iss=issues.find(i=>i.id===id);if(!iss)return;
+  const urls=(iss.url||'').split(',').map(u=>u.trim()).filter(Boolean);
+  const pc={High:'#9f1239',Medium:'#713f12',Low:'#14532d'};
+  G('dpb').innerHTML=`
+    <div class="dpl">Description</div>
+    <div class="dpv">${esc(iss.name||'-')}</div>
+    <div class="dp-grid">
+      <div><div class="dpl">Priority</div><div class="dpv" style="color:${pc[iss.priority]||'#52525b'};font-weight:600">${esc(iss.priority||'-')}</div></div>
+      <div><div class="dpl">Status</div><div class="dpv">${esc(iss.status||'-')}</div></div>
+    </div>
+    <div class="dp-grid">
+      <div><div class="dpl">Type</div><div class="dpv m">${esc(iss.type||'-')}</div></div>
+      <div><div class="dpl">Assignee</div><div class="dpv" style="display:flex;align-items:center;gap:6px"><div style="width:20px;height:20px;border-radius:50%;background:${uc(iss.user||'')};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0">${ini(iss.user||'?')}</div>${esc(iss.user||'-')}</div></div>
+    </div>
+    ${iss.details?`<div class="dpl">Details</div><div class="dpv m">${esc(iss.details)}</div>`:''}
+    ${urls.length?`<div class="dpl">Attachments (${urls.length})</div><div class="dpimgs">${urls.map(u=>`<img class="dpimg" src="${esc(u)}" onclick="olb('${esc(u)}')" onerror="this.parentNode&&this.parentNode.removeChild(this)" loading="lazy">`).join('')}</div>`:''}
+  `;
+  G('dpeb').dataset.id=id;
+  G('dp').classList.add('open');
+  G('ma').classList.add('po');
+}
+function cp2(){
+  selId=null;G('dp').classList.remove('open');G('ma').classList.remove('po');rt();
+}
+function efp(){
+  const id=G('dpeb').dataset.id;cp2();openEdit(id);
+}
+
+/* LIGHTBOX */
+function olb(url){G('lbi').src=url;G('lb').classList.add('open')}
+function clb(){G('lb').classList.remove('open');G('lbi').src=''}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){clb();cm();cp2()}});
+
+/* FILTERS */
+function sv(val,el){
+  vF=val;document.querySelectorAll('.si').forEach(b=>b.classList.remove('active'));el.classList.add('active');
+  const L={all:'All Issues',High:'High Priority','In Progress':'In Progress','Not Started':'Not Started',Done:'Done',Omar:'Omar',Mohamed:'Mohamed'};
+  G('tbt').textContent=L[val]||val;rt();
+}
+function st(val,el){
+  tF=val;document.querySelectorAll('.ft').forEach(b=>b.classList.remove('active'));el.classList.add('active');rt();
+}
+function sb2(k){if(k==='idx'){sK=null;rt();return}if(sK===k)sD*=-1;else{sK=k;sD=1}rt()}
+
+/* UPDATE */
+async function upd(id,field,value){
+  bcast(id);
+  const idx=issues.findIndex(i=>i.id===id);if(idx<0)return;
+  issues[idx][field]=value;saveLocal();renderStats();renderCounts();
+  if(selId===id)openDP(id);
+  try{await qpatch('issues',id,{[field]:value})}catch(e){toast('Save failed: '+e.message,'err')}
+}
+
+/* MODAL */
+function openAdd(){
+  editId=null;G('mtitle').textContent='New Issue';
+  G('mna').value='';G('mpr').value='Medium';G('mst').value='Not Started';
+  G('mty').value='';G('mus').value=me||'';G('mdt').value='';G('mur').value='';
+  G('mo').style.display='flex';setTimeout(()=>G('mna').focus(),50);
+}
+function openEdit(id){
+  const iss=issues.find(i=>i.id===id);if(!iss)return;
+  editId=id;bcast(id);G('mtitle').textContent='Edit Issue';
+  G('mna').value=iss.name||'';G('mpr').value=iss.priority||'Medium';G('mst').value=iss.status||'Not Started';
+  G('mty').value=iss.type||'';G('mus').value=iss.user||'';G('mdt').value=iss.details||'';G('mur').value=iss.url||'';
+  G('mo').style.display='flex';setTimeout(()=>G('mna').focus(),50);
+}
+async function sm(){
+  const data={name:G('mna').value.trim(),priority:G('mpr').value,status:G('mst').value,type:G('mty').value,user:G('mus').value.trim(),details:G('mdt').value.trim(),url:G('mur').value.trim()};
+  if(!data.name){toast('Description required','warn');return}
+  if(editId){
+    const idx=issues.findIndex(i=>i.id===editId);if(idx>=0)Object.assign(issues[idx],data);
+    saveLocal();
+    try{await qpatch('issues',editId,data);toast('Issue updated')}catch(e){toast('Update failed: '+e.message,'err');return}
+  }else{
+    try{const ins=await qpost('issues',[data]);issues.push(ins[0]);saveLocal();toast('Issue created')}
+    catch(e){issues.push({...data,id:'l_'+Math.random().toString(36).slice(2)});saveLocal();toast('Saved locally','warn')}
+  }
+  cm();renderAll();
+}
+function cm(){G('mo').style.display='none'}
+
+/* TOAST */
+function toast(msg,type=''){
+  const el=document.createElement('div');
+  el.className='tst'+(type?' '+type:'');el.textContent=msg;
+  G('ts').appendChild(el);setTimeout(()=>el.remove(),3000);
+}
+</script>
+</body>
+</html>
