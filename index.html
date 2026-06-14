@@ -54,7 +54,7 @@ hr.ld{border:none;border-top:1px solid var(--bd);margin:28px 0}
 
 /* MAIN */
 .main{margin-left:220px;min-height:100vh;display:flex;flex-direction:column;transition:margin-right .2s}
-.main.po{margin-right:400px}
+.main.po{margin-right:0}
 .tb{height:48px;border-bottom:1px solid var(--bd);background:var(--su);display:flex;align-items:center;padding:0 20px;position:sticky;top:0;z-index:40}
 .tbt{font-size:13px;font-weight:600;letter-spacing:-.02em;flex:1}
 .tba{display:flex;align-items:center;gap:6px}
@@ -144,7 +144,9 @@ td.tdn{height:auto;padding:10px 12px}
 .thumb:hover{transform:scale(1.12);box-shadow:0 2px 8px rgba(0,0,0,.15);z-index:1;position:relative}
 
 /* DETAIL PANEL */
-.dp{position:fixed;right:0;top:0;bottom:0;width:400px;background:var(--su);border-left:1px solid var(--bd);z-index:60;display:none;flex-direction:column;overflow:hidden;box-shadow:-4px 0 20px rgba(0,0,0,.05)}
+.dp-backdrop{position:fixed;inset:0;z-index:59;display:none}
+.dp-backdrop.open{display:block}
+.dp{position:fixed;right:0;top:0;bottom:0;width:420px;background:var(--su);border-left:1px solid var(--bd);z-index:60;display:none;flex-direction:column;overflow:hidden;box-shadow:-8px 0 32px rgba(0,0,0,.1),-2px 0 8px rgba(0,0,0,.06);transition:transform .2s ease}
 .dp.open{display:flex}
 .dph{padding:16px 20px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
 .dph h3{font-size:13px;font-weight:600;letter-spacing:-.01em}
@@ -288,6 +290,9 @@ td.tdn{height:auto;padding:10px 12px}
     </div>
   </main>
 </div>
+
+<!-- DETAIL PANEL BACKDROP -->
+<div class="dp-backdrop" id="dpback" onclick="cp2()"></div>
 
 <!-- DETAIL PANEL -->
 <div class="dp" id="dp">
@@ -586,10 +591,10 @@ function openDP(id){
   `;
   G('dpeb').dataset.id=id;
   G('dp').classList.add('open');
-  G('ma').classList.add('po');
+  G('dpback').classList.add('open');
 }
 function cp2(){
-  selId=null;G('dp').classList.remove('open');G('ma').classList.remove('po');rt();
+  selId=null;G('dp').classList.remove('open');G('dpback').classList.remove('open');rt();
 }
 function efp(){
   const id=G('dpeb').dataset.id;cp2();openEdit(id);
