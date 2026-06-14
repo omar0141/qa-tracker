@@ -686,17 +686,46 @@ function renderStats(){
 }
 
 function renderCounts(){
-  const cn=fn=>issues.filter(fn).length;
   const s=(id,n)=>{const e=G(id);if(e)e.textContent=n};
   const nd=i=>!i.is_deleted;
-  s('sca',cn(nd));s('sch',cn(i=>i.priority==='High'&&nd(i)));s('scp',cn(i=>i.status==='In Progress'&&nd(i)));
-  s('scn',cn(i=>i.status==='Not Started'&&nd(i)));s('scd',cn(i=>i.status==='Done'&&nd(i)));
-  // team counts are rendered inside renderTeamSidebar dynamically
-  s('fa',issues.length);s('fh',cn(i=>i.priority==='High'));s('fm',cn(i=>i.priority==='Medium'));s('fl',cn(i=>i.priority==='Low'));
-  s('fn',cn(i=>i.status==='Not Started'));s('fi',cn(i=>i.status==='In Progress'));s('fd',cn(i=>i.status==='Done'));s('fq',cn(i=>i.status==='Need to discuss'));
-  s('fc',cn(i=>(i.type||'').includes('Client')&&!i.is_deleted));s('fp',cn(i=>(i.type||'').includes('Partner')&&!i.is_deleted));s('fk',cn(i=>(i.type||'').includes('CPanel')&&!i.is_deleted));
-  const delCnt=cn(i=>i.is_deleted===true||i.is_deleted==='true'||i.is_deleted===1);
+
+  // Sidebar counts — always against full non-deleted dataset (absolute numbers)
+  const all=issues.filter(nd);
+  s('sca',all.length);
+  s('sch',all.filter(i=>i.priority==='High').length);
+  s('scp',all.filter(i=>i.status==='In Progress').length);
+  s('scn',all.filter(i=>i.status==='Not Started').length);
+  s('scd',all.filter(i=>i.status==='Done').length);
+  const delCnt=issues.filter(i=>i.is_deleted===true||i.is_deleted==='true'||i.is_deleted===1).length;
   s('scx',delCnt);s('fx',delCnt);
+  // team counts rendered inside renderTeamSidebar
+
+  // Tab counts — respect current sidebar view (vF) so they match the visible rows
+  // Build base set: apply vF filter same way filtered() does, but without activeFilters/search/tab
+  let base=vF==='Deleted'
+    ? issues.filter(i=>i.is_deleted===true||i.is_deleted==='true'||i.is_deleted===1)
+    : issues.filter(nd);
+
+  if(vF!=='all'&&vF!=='Deleted'){
+    const VM={High:'priority',Medium:'priority',Low:'priority',
+      'In Progress':'status','Not Started':'status',Done:'status'};
+    teams.forEach(t=>{VM[t.name]='user'});
+    const f=VM[vF];
+    if(f)base=base.filter(i=>(i[f]||'')===vF);
+  }
+
+  const cn=fn=>base.filter(fn).length;
+  s('fa',base.length);
+  s('fh',cn(i=>i.priority==='High'));
+  s('fm',cn(i=>i.priority==='Medium'));
+  s('fl',cn(i=>i.priority==='Low'));
+  s('fn',cn(i=>i.status==='Not Started'));
+  s('fi',cn(i=>i.status==='In Progress'));
+  s('fd',cn(i=>i.status==='Done'));
+  s('fq',cn(i=>i.status==='Need to discuss'));
+  s('fc',cn(i=>(i.type||'').includes('Client')));
+  s('fp',cn(i=>(i.type||'').includes('Partner')));
+  s('fk',cn(i=>(i.type||'').includes('CPanel')));
 }
 
 /* DETAIL PANEL */
@@ -908,6 +937,8 @@ async function loadTeams(){
 function renderTeamSidebar(){
   const list=G('team-list');
   if(!list)return;
+  // For team counts: how many non-deleted issues assigned to each member
+  // (always global, not affected by other filters — sidebar is for navigation)
   const alive=issues.filter(i=>!i.is_deleted);
   list.innerHTML=teams.map(t=>{
     const cnt=alive.filter(i=>(i.user||'').toLowerCase()===t.name.toLowerCase()).length;
