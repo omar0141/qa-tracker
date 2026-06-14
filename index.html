@@ -254,6 +254,21 @@ tbody tr.deleted-row .iname{text-decoration:line-through;color:var(--t3)}
 .dp-meta-item{}
 .dp-meta-val{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--tx);margin-top:2px}
 .dp-av{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;flex-shrink:0}
+
+.sbl-row{display:flex;align-items:center;justify-content:space-between;padding:0 8px;margin-bottom:4px}
+.sbl-add{background:none;border:none;color:var(--t3);font-size:16px;cursor:pointer;line-height:1;padding:0 2px;border-radius:3px;transition:color .1s,background .1s}
+.sbl-add:hover{color:var(--tx);background:var(--hv)}
+.si-input{display:block;width:100%;background:var(--bg);border:1px solid var(--bd2);border-radius:var(--r4);padding:6px 8px;font-size:12px;font-family:var(--f);color:var(--tx);outline:none;margin:4px 8px 6px;width:calc(100% - 16px);transition:border-color .15s}
+.si-input:focus{border-color:var(--ac)}
+.si-form-actions{display:flex;gap:6px;padding:0 8px 8px}
+.si-form-btn{flex:1;border:none;border-radius:var(--r4);padding:5px 0;font-size:11px;font-weight:600;font-family:var(--f);cursor:pointer;transition:opacity .15s}
+.si-form-cancel{background:var(--hv);color:var(--t2)}
+.si-form-cancel:hover{opacity:.8}
+.si-form-save{background:var(--tx);color:#fff}
+.si-form-save:hover{opacity:.8}
+.si-del{margin-left:auto;opacity:0;background:none;border:none;color:var(--t3);font-size:11px;cursor:pointer;padding:2px 4px;border-radius:3px;transition:opacity .1s,color .1s;flex-shrink:0}
+.si:hover .si-del{opacity:1}
+.si-del:hover{color:#ef4444;opacity:1}
 </style>
 </head>
 <body>
@@ -286,9 +301,18 @@ tbody tr.deleted-row .iname{text-decoration:line-through;color:var(--t3)}
       <div class="si" data-view="Deleted" onclick="sv('Deleted',this)"><span class="ic" style="color:#f87171">&#x1F5D1;</span>Deleted<span class="sc" id="scx">0</span></div>
     </div>
     <div class="sbs" style="margin-top:8px">
-      <div class="sbl">Team</div>
-      <div class="si" onclick="sv('Omar',this)"><span class="ic">&#9671;</span>Omar<span class="sc" id="sco">0</span></div>
-      <div class="si" onclick="sv('Mohamed',this)"><span class="ic">&#9671;</span>Mohamed<span class="sc" id="scm">0</span></div>
+      <div class="sbl-row">
+        <div class="sbl">Team</div>
+        <button class="sbl-add" onclick="openAddMember()" title="Add team member">+</button>
+      </div>
+      <div id="team-list"></div>
+      <div id="add-member-form" style="display:none">
+        <input class="si-input" id="new-member-name" placeholder="Member name..." maxlength="30" onkeydown="if(event.key==='Enter')saveMember();if(event.key==='Escape')closeAddMember()">
+        <div class="si-form-actions">
+          <button class="si-form-btn si-form-cancel" onclick="closeAddMember()">Cancel</button>
+          <button class="si-form-btn si-form-save" onclick="saveMember()">Add</button>
+        </div>
+      </div>
     </div>
     <div class="sbsp"></div>
     <div class="sbft">
@@ -390,7 +414,12 @@ tbody tr.deleted-row .iname{text-decoration:line-through;color:var(--t3)}
             <option value="Client, CPanel">Client + CPanel</option>
             <option value="Partner, CPanel">Partner + CPanel</option>
           </select></div>
-        <div class="mf"><label>Assignee</label><input id="mus" placeholder="Name..."></div>
+        <div class="mf"><label>Assignee</label>
+          <select id="mus-sel" onchange="G('mus').value=this.value" style="width:100%;font-family:var(--f);font-size:13px;color:var(--tx);background:var(--su);border:1px solid var(--bd);border-radius:var(--r4);padding:7px 10px;outline:none;-webkit-appearance:none;appearance:none;transition:border-color .15s,box-shadow .15s">
+            <option value="">— Select assignee —</option>
+          </select>
+          <input id="mus" type="hidden" placeholder="Name...">
+        </div>
       </div>
       <div class="mf"><label>Details</label><textarea id="mdt" rows="2" placeholder="Additional context..."></textarea></div>
       <div class="mf">
@@ -439,6 +468,7 @@ const SEED=[
 ];
 
 let me=null,uid=null,myC=null;
+let teams=[];
 let issues=[],online={},editing={};
 let sK=null,sD=1,vF='all',activeFilters=new Set(),selId=null,editId=null;
 const cmap={};
@@ -467,7 +497,7 @@ function go(){
   myC=AVC[Math.floor(Math.random()*AVC.length)];cmap[n]=myC;
   G('lo').style.display='none';G('app').style.display='block';
   G('mav').textContent=ini(n);G('mav').style.background=myC;G('mn').textContent=n;
-  loadLocal();renderAll();initSB();
+  loadLocal();loadTeamsLocal();renderAll();initSB();
 }
 
 /* SUPABASE via plain fetch - avoids DataCloneError from postMessage in supabase-js */
@@ -499,6 +529,7 @@ async function initSB(){
   try{
     await qget('issues','select=id&limit=1');
     setConn(true);
+    await loadTeams();
     await seedOrLoad();
     startRT();
     startPres();
@@ -577,7 +608,7 @@ function loadLocal(){try{const s=localStorage.getItem('qa_v6');if(s)issues=JSON.
 function saveLocal(){localStorage.setItem('qa_v6',JSON.stringify(issues))}
 
 /* RENDER */
-function renderAll(){rt();renderStats();renderCounts()}
+function renderAll(){rt();renderStats();renderCounts();renderTeamSidebar();}
 
 function renderOnline(){
   G('os').innerHTML=Object.values(online).map(u=>`<div class="oa" style="background:${u.color}">${ini(u.name)}<span class="oat">${esc(u.name)}</span></div>`).join('');
@@ -593,7 +624,8 @@ function filtered(){
     const q=(G('srq')?.value||'').toLowerCase().trim();
     if(q)d=d.filter(i=>['name','type','user','status','priority','details'].some(k=>(i[k]||'').toLowerCase().includes(q)));
     if(vF!=='all'){
-      const VM={High:'priority',Medium:'priority',Low:'priority','In Progress':'status','Not Started':'status',Done:'status',Omar:'user',Mohamed:'user'};
+      const VM={High:'priority',Medium:'priority',Low:'priority','In Progress':'status','Not Started':'status',Done:'status'};
+      teams.forEach(t=>{VM[t.name]='user'});
       const f=VM[vF];if(f)d=d.filter(i=>(i[f]||'')===vF);
     }
   }
@@ -659,7 +691,7 @@ function renderCounts(){
   const nd=i=>!i.is_deleted;
   s('sca',cn(nd));s('sch',cn(i=>i.priority==='High'&&nd(i)));s('scp',cn(i=>i.status==='In Progress'&&nd(i)));
   s('scn',cn(i=>i.status==='Not Started'&&nd(i)));s('scd',cn(i=>i.status==='Done'&&nd(i)));
-  s('sco',cn(i=>(i.user||'').toLowerCase()==='omar'));s('scm',cn(i=>(i.user||'').toLowerCase()==='mohamed'));
+  // team counts are rendered inside renderTeamSidebar dynamically
   s('fa',issues.length);s('fh',cn(i=>i.priority==='High'));s('fm',cn(i=>i.priority==='Medium'));s('fl',cn(i=>i.priority==='Low'));
   s('fn',cn(i=>i.status==='Not Started'));s('fi',cn(i=>i.status==='In Progress'));s('fd',cn(i=>i.status==='Done'));s('fq',cn(i=>i.status==='Need to discuss'));
   s('fc',cn(i=>(i.type||'').includes('Client')&&!i.is_deleted));s('fp',cn(i=>(i.type||'').includes('Partner')&&!i.is_deleted));s('fk',cn(i=>(i.type||'').includes('CPanel')&&!i.is_deleted));
@@ -743,7 +775,8 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){clb();cm();cp2()}})
 /* FILTERS */
 function sv(val,el){
   vF=val;document.querySelectorAll('.si').forEach(b=>b.classList.remove('active'));el.classList.add('active');
-  const L={all:'All Issues',High:'High Priority','In Progress':'In Progress','Not Started':'Not Started',Done:'Done',Omar:'Omar',Mohamed:'Mohamed',Deleted:'Deleted Issues'};
+  const L={all:'All Issues',High:'High Priority','In Progress':'In Progress','Not Started':'Not Started',Done:'Done',Deleted:'Deleted Issues'};
+  teams.forEach(t=>{L[t.name]=t.name});
   G('tbt').textContent=L[val]||val;rt();
 }
 function st(val,el){
@@ -785,14 +818,14 @@ async function upd(id,field,value){
 function openAdd(){
   editId=null;G('mtitle').textContent='New Issue';
   G('mna').value='';G('mpr').value='Medium';G('mst').value='Not Started';
-  G('mty').value='';G('mus').value=me||'';G('mdt').value='';resetUploader();
+  G('mty').value='';G('mus').value=me||'';const sel0=G('mus-sel');if(sel0){sel0.value=me||'';if(!sel0.value&&me){const o=document.createElement('option');o.value=me;o.textContent=me;sel0.appendChild(o);sel0.value=me;}}renderAssigneeDropdown();G('mus').value=me||'';G('mdt').value='';resetUploader();
   G('mo').style.display='flex';setTimeout(()=>G('mna').focus(),50);
 }
 function openEdit(id){
   const iss=issues.find(i=>i.id===id);if(!iss)return;
   editId=id;bcast(id);G('mtitle').textContent='Edit Issue';
   G('mna').value=iss.name||'';G('mpr').value=iss.priority||'Medium';G('mst').value=iss.status||'Not Started';
-  G('mty').value=iss.type||'';G('mus').value=iss.user||'';G('mdt').value=iss.details||'';loadExistingUrls(iss.url||'');
+  G('mty').value=iss.type||'';G('mus').value=iss.user||'';renderAssigneeDropdown();const sel1=G('mus-sel');if(sel1){sel1.value=iss.user||'';if(iss.user&&!sel1.value){const o=document.createElement('option');o.value=iss.user;o.textContent=iss.user;sel1.appendChild(o);sel1.value=iss.user;}}G('mus').value=iss.user||'';G('mdt').value=iss.details||'';loadExistingUrls(iss.url||'');
   G('mo').style.display='flex';setTimeout(()=>G('mna').focus(),50);
 }
 async function sm(){
@@ -841,6 +874,101 @@ function toast(msg,type=''){
   const el=document.createElement('div');
   el.className='tst'+(type?' '+type:'');el.textContent=msg;
   G('ts').appendChild(el);setTimeout(()=>el.remove(),3000);
+}
+
+
+/* TEAMS */
+const DEFAULT_TEAMS = [{id:'t_omar',name:'Omar',color:'#2563eb'},{id:'t_moh',name:'Mohamed',color:'#7c3aed'}];
+
+function loadTeamsLocal(){
+  try{
+    const s=localStorage.getItem('qa_teams_v1');
+    teams=s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT_TEAMS));
+  }catch{teams=JSON.parse(JSON.stringify(DEFAULT_TEAMS))}
+  renderTeamSidebar();
+  renderAssigneeDropdown();
+}
+
+async function loadTeams(){
+  try{
+    const data=await qget('teams','select=*&order=name');
+    if(data.length===0){
+      // Seed default teams
+      const ins=await qpost('teams',DEFAULT_TEAMS.map(t=>({id:undefined,name:t.name,color:t.color})));
+      teams=ins;
+    }else{
+      teams=data;
+    }
+    localStorage.setItem('qa_teams_v1',JSON.stringify(teams));
+    renderTeamSidebar();
+    renderAssigneeDropdown();
+  }catch(e){console.warn('teams load failed',e)}
+}
+
+function renderTeamSidebar(){
+  const list=G('team-list');
+  if(!list)return;
+  const alive=issues.filter(i=>!i.is_deleted);
+  list.innerHTML=teams.map(t=>{
+    const cnt=alive.filter(i=>(i.user||'').toLowerCase()===t.name.toLowerCase()).length;
+    const isActive=vF===t.name;
+    return`<div class="si${isActive?' active':''}" onclick="sv('${esc(t.name)}',this)" data-team="${esc(t.name)}">
+      <span class="ic"><div style="width:8px;height:8px;border-radius:50%;background:${t.color};display:inline-block"></div></span>
+      ${esc(t.name)}
+      <span class="sc">${cnt}</span>
+      <button class="si-del" onclick="event.stopPropagation();deleteMember('${esc(t.id||t.name)}')" title="Remove">&#x2715;</button>
+    </div>`;
+  }).join('');
+}
+
+function renderAssigneeDropdown(){
+  const sel=G('mus-sel');
+  if(!sel)return;
+  const cur=sel.value;
+  sel.innerHTML=`<option value="">— Select assignee —</option>`+teams.map(t=>`<option value="${esc(t.name)}"${t.name===cur?' selected':''}>${esc(t.name)}</option>`).join('');
+}
+
+function openAddMember(){
+  G('add-member-form').style.display='block';
+  setTimeout(()=>G('new-member-name').focus(),50);
+}
+function closeAddMember(){
+  G('add-member-form').style.display='none';
+  G('new-member-name').value='';
+}
+
+async function saveMember(){
+  const name=G('new-member-name').value.trim();
+  if(!name)return;
+  if(teams.find(t=>t.name.toLowerCase()===name.toLowerCase())){
+    toast('Member already exists','warn');return;
+  }
+  const color=AVC[teams.length%AVC.length];
+  const newMember={name,color};
+  teams.push({...newMember,id:'t_'+Math.random().toString(36).slice(2)});
+  localStorage.setItem('qa_teams_v1',JSON.stringify(teams));
+  renderTeamSidebar();
+  renderAssigneeDropdown();
+  closeAddMember();
+  toast(name+' added to team');
+  // Save to Supabase
+  try{const ins=await qpost('teams',[newMember]);
+    if(ins[0]){teams[teams.length-1]=ins[0];localStorage.setItem('qa_teams_v1',JSON.stringify(teams));}
+  }catch(e){console.warn('team save failed',e)}
+}
+
+async function deleteMember(idOrName){
+  if(!confirm('Remove this team member? They won\'t be deleted from existing issues.'))return;
+  const idx=teams.findIndex(t=>t.id===idOrName||t.name===idOrName);
+  if(idx<0)return;
+  const t=teams[idx];
+  teams.splice(idx,1);
+  localStorage.setItem('qa_teams_v1',JSON.stringify(teams));
+  renderTeamSidebar();
+  renderAssigneeDropdown();
+  if(vF===t.name)sv('all',document.querySelector('.si[onclick*="'all'"]'));
+  toast(t.name+' removed from team');
+  try{if(t.id&&!t.id.startsWith('t_'))await fetch(SB+'/rest/v1/teams?id=eq.'+t.id,{method:'DELETE',headers:H()})}catch(e){}
 }
 
 /* CLOUDINARY UPLOAD */
