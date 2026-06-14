@@ -249,6 +249,11 @@ tbody tr.deleted-row{opacity:.5}
 tbody tr.deleted-row .iname{text-decoration:line-through;color:var(--t3)}
 .deleted-badge{display:inline-flex;align-items:center;gap:4px;margin-top:4px;padding:2px 7px;background:#fff1f2;border-radius:3px;font-size:10px;font-weight:600;color:#9f1239;border:1px solid #fecdd3}
 .dp-deleted-banner{background:#fff1f2;border:1px solid #fecdd3;border-radius:var(--r4);padding:8px 12px;margin-bottom:16px;font-size:12px;color:#9f1239;font-weight:500;display:flex;align-items:center;gap:6px}
+
+.dp-meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid var(--bd)}
+.dp-meta-item{}
+.dp-meta-val{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--tx);margin-top:2px}
+.dp-av{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;flex-shrink:0}
 </style>
 </head>
 <body>
@@ -441,6 +446,19 @@ const G=id=>document.getElementById(id);
 const ini=n=>(n||'?').trim().split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2);
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 function uc(n){if(!cmap[n])cmap[n]=AVC[Object.keys(cmap).length%AVC.length];return cmap[n]}
+function fmtDate(iso){
+  if(!iso)return '-';
+  try{
+    const d=new Date(iso);
+    const now=new Date();
+    const diff=Math.floor((now-d)/1000);
+    if(diff<60)return 'just now';
+    if(diff<3600)return Math.floor(diff/60)+'m ago';
+    if(diff<86400)return Math.floor(diff/3600)+'h ago';
+    if(diff<604800)return Math.floor(diff/86400)+'d ago';
+    return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  }catch(e){return iso}
+}
 
 G('ni').addEventListener('keydown',e=>{if(e.key==='Enter')go()});
 function go(){
@@ -670,6 +688,24 @@ function openDP(id){
       <div><div class="dpl">Assignee</div><div class="dpv" style="display:flex;align-items:center;gap:6px"><div style="width:20px;height:20px;border-radius:50%;background:${uc(iss.user||'')};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0">${ini(iss.user||'?')}</div>${esc(iss.user||'-')}</div></div>
     </div>
     ${iss.details?`<div class="dpl">Details</div><div class="dpv m">${esc(iss.details)}</div>`:''}
+    <div class="dp-meta">
+      <div class="dp-meta-item">
+        <div class="dpl">Created by</div>
+        <div class="dp-meta-val">
+          ${iss.created_by?`<div class="dp-av" style="background:${uc(iss.created_by)}">${ini(iss.created_by)}</div>${esc(iss.created_by)}`:'<span style="color:var(--t3)">—</span>'}
+        </div>
+      </div>
+      <div class="dp-meta-item">
+        <div class="dpl">Last updated by</div>
+        <div class="dp-meta-val">
+          ${iss.updated_by?`<div class="dp-av" style="background:${uc(iss.updated_by)}">${ini(iss.updated_by)}</div>${esc(iss.updated_by)}`:'<span style="color:var(--t3)">—</span>'}
+        </div>
+      </div>
+      <div class="dp-meta-item" style="grid-column:1/-1">
+        <div class="dpl">Last updated at</div>
+        <div class="dpv m" style="font-size:12px">${iss.updated_at?fmtDate(iss.updated_at):'—'}</div>
+      </div>
+    </div>
     ${urls.length?`<div class="dpl">Attachments (${urls.length})</div><div class="dpimgs">${urls.map(u=>`<img class="dpimg" src="${esc(u)}" onclick="olb('${esc(u)}')" onerror="this.parentNode&&this.parentNode.removeChild(this)" loading="lazy">`).join('')}</div>`:''}
   `;
   G('dpeb').dataset.id=id;
@@ -738,9 +774,11 @@ function sb2(k){if(k==='idx'){sK=null;rt();return}if(sK===k)sD*=-1;else{sK=k;sD=
 async function upd(id,field,value){
   bcast(id);
   const idx=issues.findIndex(i=>i.id===id);if(idx<0)return;
-  issues[idx][field]=value;saveLocal();renderStats();renderCounts();
+  const nowUpd=new Date().toISOString();
+  issues[idx][field]=value;issues[idx].updated_by=me;issues[idx].updated_at=nowUpd;
+  saveLocal();renderStats();renderCounts();
   if(selId===id)openDP(id);
-  try{await qpatch('issues',id,{[field]:value})}catch(e){toast('Save failed: '+e.message,'err')}
+  try{await qpatch('issues',id,{[field]:value,updated_by:me,updated_at:nowUpd})}catch(e){toast('Save failed: '+e.message,'err')}
 }
 
 /* MODAL */
@@ -758,15 +796,18 @@ function openEdit(id){
   G('mo').style.display='flex';setTimeout(()=>G('mna').focus(),50);
 }
 async function sm(){
+  const now=new Date().toISOString();
   const data={name:G('mna').value.trim(),priority:G('mpr').value,status:G('mst').value,type:G('mty').value,user:G('mus').value.trim(),details:G('mdt').value.trim(),url:pendingUrls.join(',')};
   if(!data.name){toast('Description required','warn');return}
   if(editId){
     const idx=issues.findIndex(i=>i.id===editId);if(idx>=0)Object.assign(issues[idx],data);
     saveLocal();
-    try{await qpatch('issues',editId,data);toast('Issue updated')}catch(e){toast('Update failed: '+e.message,'err');return}
+    const metaUpd={...data,updated_by:me,updated_at:now};
+    const idx2=issues.findIndex(i=>i.id===editId);if(idx2>=0)Object.assign(issues[idx2],{updated_by:me,updated_at:now});
+    try{await qpatch('issues',editId,metaUpd);toast('Issue updated')}catch(e){toast('Update failed: '+e.message,'err');return}
   }else{
-    try{const ins=await qpost('issues',[data]);issues.push(ins[0]);saveLocal();toast('Issue created')}
-    catch(e){issues.push({...data,id:'l_'+Math.random().toString(36).slice(2)});saveLocal();toast('Saved locally','warn')}
+    try{const ins=await qpost('issues',[{...data,created_by:me,updated_by:me,updated_at:now}]);issues.push(ins[0]);saveLocal();toast('Issue created')}
+    catch(e){issues.push({...data,id:'l_'+Math.random().toString(36).slice(2),created_by:me,updated_by:me,updated_at:now});saveLocal();toast('Saved locally','warn')}
   }
   cm();renderAll();
 }
