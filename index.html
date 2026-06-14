@@ -989,7 +989,7 @@ async function saveMember(){
 }
 
 async function deleteMember(idOrName){
-  if(!confirm('Remove this team member? They won\'t be deleted from existing issues.'))return;
+  if(!confirm("Remove this team member? They won't be deleted from existing issues."))return;
   const idx=teams.findIndex(t=>t.id===idOrName||t.name===idOrName);
   if(idx<0)return;
   const t=teams[idx];
@@ -997,7 +997,7 @@ async function deleteMember(idOrName){
   localStorage.setItem('qa_teams_v1',JSON.stringify(teams));
   renderTeamSidebar();
   renderAssigneeDropdown();
-  if(vF===t.name)sv('all',document.querySelector('.si[onclick*="'all'"]'));
+  if(vF===t.name){const _si=document.querySelector('.si');if(_si)sv('all',_si);}
   toast(t.name+' removed from team');
   try{if(t.id&&!t.id.startsWith('t_'))await fetch(SB+'/rest/v1/teams?id=eq.'+t.id,{method:'DELETE',headers:H()})}catch(e){}
 }
