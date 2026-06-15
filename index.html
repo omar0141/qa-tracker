@@ -198,12 +198,27 @@ td.tdn{height:auto;padding:10px 12px}
 .bs:hover{opacity:.85}
 
 
+/* CONFIRM DIALOG */
+var _cdResolve=null;
+function showConfirm(title,msg,confirmLabel,variant){
+  variant=variant||'danger';
+  G('cd-title').textContent=title||'Are you sure?';
+  G('cd-msg').textContent=msg||'';
+  var btn=G('cd-confirm-btn');
+  btn.textContent=confirmLabel||'Confirm';
+  btn.className='btn cd-'+variant;
+  G('cdialog').style.display='flex';
+  return new Promise(function(resolve){_cdResolve=resolve;});
+}
+function _cdConfirm(){G('cdialog').style.display='none';if(_cdResolve)_cdResolve(true);_cdResolve=null;}
+function _cdCancel(){G('cdialog').style.display='none';if(_cdResolve)_cdResolve(false);_cdResolve=null;}
+
 /* SOFT DELETE */
 async function deleteIssue(){
   const id=G('dpdb').dataset.id;
   if(!id)return;
-  if(!confirm("Flag this issue as deleted? It can be restored later."))return;
-  if(!confirm('Flag this issue as deleted? It can be restored later.'))return;
+  if(!(await showConfirm('Delete issue','This issue will be flagged as deleted. You can restore it from the Deleted view.','Delete','danger')))return;
+  
   const idx=issues.findIndex(i=>i.id===id);
   if(idx>=0)issues[idx].is_deleted=true;
   saveLocal();cp2();renderAll();
@@ -214,7 +229,7 @@ async function deleteIssue(){
 async function restoreIssue(){
   const id=G('dpdb').dataset.id;
   if(!id)return;
-  if(!confirm("Restore this issue?"))return;
+  if(!(await showConfirm('Restore issue','This issue will be moved back to your active issues list.','Restore','ok')))return;
   const idx=issues.findIndex(i=>i.id===id);
   if(idx>=0)issues[idx].is_deleted=false;
   saveLocal();cp2();renderAll();
@@ -275,6 +290,14 @@ tbody tr.deleted-row .iname{text-decoration:line-through;color:var(--t3)}
 .si:hover .si-del{opacity:1}
 .si-del:hover{color:#ef4444;opacity:1}
 .team-si{position:relative}.team-si .team-cnt{transition:opacity .15s}.team-si .si-del{position:absolute;right:4px;top:50%;transform:translateY(-50%);opacity:0;margin-left:0;transition:opacity .15s;background:none;border:none;color:var(--t3);font-size:11px;cursor:pointer;padding:2px 4px;border-radius:3px}.team-si:hover .team-cnt{opacity:0;pointer-events:none}.team-si:hover .si-del{opacity:1}.team-si .si-del:hover{color:#ef4444}
+#cdialog .mp{animation:cdIn .18s cubic-bezier(.4,0,.2,1)}
+@keyframes cdIn{from{transform:scale(.96) translateY(-6px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+.cd-danger{background:#dc2626;color:#fff;border-color:#dc2626}
+.cd-danger:hover{background:#b91c1c;border-color:#b91c1c}
+.cd-warning{background:#d97706;color:#fff;border-color:#d97706}
+.cd-warning:hover{background:#b45309;border-color:#b45309}
+.cd-ok{background:var(--tx);color:#fff;border-color:var(--tx)}
+.cd-ok:hover{opacity:.85}
 </style>
 </head>
 <body>
@@ -802,7 +825,7 @@ function efp(){
 /* LIGHTBOX */
 function olb(url){G('lbi').src=url;G('lb').classList.add('open')}
 function clb(){G('lb').classList.remove('open');G('lbi').src=''}
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){clb();cm();cp2()}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){clb();cm();cp2();_cdCancel();}});
 
 /* FILTERS */
 function sv(val,el){
@@ -880,11 +903,26 @@ async function sm(){
 function cm(){G('mo').style.display='none'}
 
 
+/* CONFIRM DIALOG */
+var _cdResolve=null;
+function showConfirm(title,msg,confirmLabel,variant){
+  variant=variant||'danger';
+  G('cd-title').textContent=title||'Are you sure?';
+  G('cd-msg').textContent=msg||'';
+  var btn=G('cd-confirm-btn');
+  btn.textContent=confirmLabel||'Confirm';
+  btn.className='btn cd-'+variant;
+  G('cdialog').style.display='flex';
+  return new Promise(function(resolve){_cdResolve=resolve;});
+}
+function _cdConfirm(){G('cdialog').style.display='none';if(_cdResolve)_cdResolve(true);_cdResolve=null;}
+function _cdCancel(){G('cdialog').style.display='none';if(_cdResolve)_cdResolve(false);_cdResolve=null;}
+
 /* SOFT DELETE */
 async function deleteIssue(){
   const id=G('dpdb').dataset.id;
   if(!id)return;
-  if(!confirm('Flag this issue as deleted? It can be restored later.'))return;
+  
   const idx=issues.findIndex(i=>i.id===id);
   if(idx>=0)issues[idx].is_deleted=true;
   saveLocal();cp2();renderAll();
@@ -1005,7 +1043,7 @@ async function saveMember(){
 }
 
 async function deleteMember(idOrName){
-  if(!confirm("Remove this team member? They won't be deleted from existing issues."))return;
+  if(!(await showConfirm('Remove team member',"They won't be removed from existing issues, only from the team list.",'Remove','danger')))return;
   const idx=teams.findIndex(t=>t.id===idOrName||t.name===idOrName);
   if(idx<0)return;
   const t=teams[idx];
@@ -1140,5 +1178,22 @@ async function uploadOne(file){
 }
 
 </script>
+
+<!-- CONFIRM DIALOG -->
+<div id="cdialog" style="display:none" class="mb" onclick="if(event.target===this)_cdCancel()">
+  <div class="mp" style="width:420px;max-width:92vw">
+    <div class="mt">
+      <h2 id="cd-title">Are you sure?</h2>
+      <button class="mc" onclick="_cdCancel()">&#x2715;</button>
+    </div>
+    <div class="mbd" style="padding:16px 20px 20px">
+      <p id="cd-msg" style="font-size:13px;color:var(--t2);line-height:1.6"></p>
+    </div>
+    <div class="mft" style="gap:8px">
+      <button class="btn bg2" style="flex:1" onclick="_cdCancel()">Cancel</button>
+      <button class="btn" id="cd-confirm-btn" style="flex:1" onclick="_cdConfirm()">Confirm</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
