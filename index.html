@@ -809,7 +809,8 @@ function sv(val,el){
   vF=val;document.querySelectorAll('.si').forEach(b=>b.classList.remove('active'));el.classList.add('active');
   const L={all:'All Issues',High:'High Priority','In Progress':'In Progress','Not Started':'Not Started',Done:'Done',Deleted:'Deleted Issues'};
   teams.forEach(t=>{L[t.name]=t.name});
-  G('tbt').textContent=L[val]||val;rt();
+  G('tbt').textContent=L[val]||val;
+  rt();renderStats();renderCounts();renderTeamSidebar();
 }
 function st(val,el){
   if(val==='all'){
@@ -831,7 +832,7 @@ function st(val,el){
       document.querySelector('.ft').classList.add('active');
     }
   }
-  rt();
+  rt();renderCounts();
 }
 function sb2(k){if(k==='idx'){sK=null;rt();return}if(sK===k)sD*=-1;else{sK=k;sD=1}rt()}
 
