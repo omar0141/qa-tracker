@@ -127,10 +127,10 @@ td.tdn{height:auto;padding:10px 12px}
 .ph select{background:#fff1f2;color:#9f1239;border:1px solid #fecdd3}
 .pm select{background:#fefce8;color:#713f12;border:1px solid #fef08a}
 .pl select{background:#f0fdf4;color:#14532d;border:1px solid #bbf7d0}
-.sn select{background:#fafafa;color:#52525b;border:1px solid #e4e4e7}
-.sp select{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
-.sd select{background:#f0fdf4;color:#14532d;border:1px solid #bbf7d0}
-.sq select{background:#fff7ed;color:#7c2d12;border:1px solid #fed7aa}
+.sn select{background:#f3f4f6;color:#374151;border:1px solid #d1d5db;font-weight:600}
+.sp select{background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;font-weight:600}
+.sd select{background:#dcfce7;color:#15803d;border:1px solid #86efac;font-weight:600}
+.sq select{background:#fef3c7;color:#b45309;border:1px solid #fcd34d;font-weight:600}
 .tc select{background:#eff6ff;color:#1d4ed8;border:1px solid #c7d2fe}
 .tp select{background:#fdf2f8;color:#831843;border:1px solid #fbcfe8}
 .tk select{background:#f0fdfa;color:#134e4a;border:1px solid #99f6e4}
@@ -312,6 +312,21 @@ tbody tr.deleted-row .iname{text-decoration:line-through;color:var(--t3)}
 .cd-warning:hover{background:#b45309;border-color:#b45309}
 .cd-ok{background:var(--tx);color:#fff;border-color:var(--tx)}
 .cd-ok:hover{opacity:.85}
+.status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.sd-none{background:#9ca3af}
+.sd-prog{background:#3b82f6}
+.sd-done{background:#22c55e}
+.sd-disc{background:#f59e0b}
+.ft[data-val="Not Started"].active{border-bottom-color:#9ca3af;color:#374151}
+.ft[data-val="In Progress"].active{border-bottom-color:#3b82f6;color:#1d4ed8}
+.ft[data-val="Done"].active{border-bottom-color:#22c55e;color:#15803d}
+.ft[data-val="Need to discuss"].active{border-bottom-color:#f59e0b;color:#b45309}
+.ft[data-val="High"].active{border-bottom-color:#ef4444;color:#991b1b}
+.ft[data-val="Medium"].active{border-bottom-color:#eab308;color:#713f12}
+.ft[data-val="Low"].active{border-bottom-color:#22c55e;color:#15803d}
+.ft[data-val="Client"].active{border-bottom-color:#6366f1;color:#3730a3}
+.ft[data-val="Partner"].active{border-bottom-color:#ec4899;color:#831843}
+.ft[data-val="CPanel"].active{border-bottom-color:#14b8a6;color:#134e4a}
 </style>
 </head>
 <body>
@@ -338,9 +353,9 @@ tbody tr.deleted-row .iname{text-decoration:line-through;color:var(--t3)}
       <div class="sbl">Views</div>
       <div class="si active" onclick="sv('all',this)"><span class="ic">&#8801;</span>All Issues<span class="sc" id="sca">0</span></div>
       <div class="si" onclick="sv('High',this)"><span class="ic" style="color:#f87171">&#9679;</span>High Priority<span class="sc" id="sch">0</span></div>
-      <div class="si" onclick="sv('In Progress',this)"><span class="ic" style="color:#60a5fa">&#9680;</span>In Progress<span class="sc" id="scp">0</span></div>
+      <div class="si" onclick="sv('In Progress',this)"><span class="ic" style="color:#3b82f6">&#9680;</span>In Progress<span class="sc" id="scp">0</span></div>
       <div class="si" onclick="sv('Not Started',this)"><span class="ic" style="color:#a1a1aa">&#9675;</span>Not Started<span class="sc" id="scn">0</span></div>
-      <div class="si" onclick="sv('Done',this)"><span class="ic" style="color:#4ade80">&#10003;</span>Done<span class="sc" id="scd">0</span></div>
+      <div class="si" onclick="sv('Done',this)"><span class="ic" style="color:#22c55e">&#10003;</span>Done<span class="sc" id="scd">0</span></div>
       <div class="si" data-view="Deleted" onclick="sv('Deleted',this)"><span class="ic" style="color:#f87171">&#x1F5D1;</span>Deleted<span class="sc" id="scx">0</span></div>
     </div>
     <div class="sbs" style="margin-top:8px">
@@ -375,20 +390,20 @@ tbody tr.deleted-row .iname{text-decoration:line-through;color:var(--t3)}
     <div class="ss" id="ss"></div>
     <div class="sub">
       <div class="ft active" onclick="st('all',this)">All <span class="ftc" id="fa">0</span></div>
-      <div class="ft" onclick="st('High',this)">High <span class="ftc" id="fh">0</span></div>
-      <div class="ft" onclick="st('Medium',this)">Medium <span class="ftc" id="fm">0</span></div>
-      <div class="ft" onclick="st('Low',this)">Low <span class="ftc" id="fl">0</span></div>
+      <div class="ft" onclick="st('High',this)" data-val="High">High <span class="ftc" id="fh">0</span></div>
+      <div class="ft" onclick="st('Medium',this)" data-val="Medium">Medium <span class="ftc" id="fm">0</span></div>
+      <div class="ft" onclick="st('Low',this)" data-val="Low">Low <span class="ftc" id="fl">0</span></div>
       <div class="sep"></div>
-      <div class="ft" onclick="st('Not Started',this)">Not Started <span class="ftc" id="fn">0</span></div>
-      <div class="ft" onclick="st('In Progress',this)">In Progress <span class="ftc" id="fi">0</span></div>
-      <div class="ft" onclick="st('Done',this)">Done <span class="ftc" id="fd">0</span></div>
-      <div class="ft" onclick="st('Need to discuss',this)">To Discuss <span class="ftc" id="fq">0</span></div>
+      <div class="ft" onclick="st('Not Started',this)" data-val="Not Started">Not Started <span class="ftc" id="fn">0</span></div>
+      <div class="ft" onclick="st('In Progress',this)" data-val="In Progress">In Progress <span class="ftc" id="fi">0</span></div>
+      <div class="ft" onclick="st('Done',this)" data-val="Done">Done <span class="ftc" id="fd">0</span></div>
+      <div class="ft" onclick="st('Need to discuss',this)" data-val="Need to discuss">To Discuss <span class="ftc" id="fq">0</span></div>
       <div class="sep"></div>
       <div class="ft ft-del" onclick="sv('Deleted',document.querySelector('.si[data-view=Deleted]'))">&#x1F5D1; Deleted <span class="ftc" id="fx">0</span></div>
       <div class="sep"></div>
-      <div class="ft" onclick="st('Client',this)">Client <span class="ftc" id="fc">0</span></div>
-      <div class="ft" onclick="st('Partner',this)">Partner <span class="ftc" id="fp">0</span></div>
-      <div class="ft" onclick="st('CPanel',this)">CPanel <span class="ftc" id="fk">0</span></div>
+      <div class="ft" onclick="st('Client',this)" data-val="Client">Client <span class="ftc" id="fc">0</span></div>
+      <div class="ft" onclick="st('Partner',this)" data-val="Partner">Partner <span class="ftc" id="fp">0</span></div>
+      <div class="ft" onclick="st('CPanel',this)" data-val="CPanel">CPanel <span class="ftc" id="fk">0</span></div>
       <div class="sr" style="margin-left:auto;flex-shrink:0">
         <span>&#8981;</span>
         <input type="text" id="srq" placeholder="Search..." oninput="rt()">
@@ -701,6 +716,12 @@ function filtered(){
 }
 
 function pC(p){return p==='High'?'ph':p==='Low'?'pl':'pm'}
+function statusDot(s){
+  if(s==="In Progress")return "sd-prog";
+  if(s==="Done")return "sd-done";
+  if(s==="Need to discuss")return "sd-disc";
+  return "sd-none";
+}
 function stC(s){if(s==='In Progress')return'sp';if(s==='Done')return'sd';if(s==='Need to discuss')return'sq';return'sn'}
 function tyC(t){if(!t)return'tm';const l=t.toLowerCase();if(l.includes(','))return'tm';if(l==='client')return'tc';if(l==='partner')return'tp';if(l==='cpanel')return'tk';return'tm'}
 
@@ -741,7 +762,7 @@ function renderStats(){
   const alive=issues.filter(i=>!i.is_deleted);
   const t=alive.length,h=alive.filter(i=>i.priority==='High').length;
   const ip=alive.filter(i=>i.status==='In Progress').length,dn=alive.filter(i=>i.status==='Done').length,di=alive.filter(i=>i.status==='Need to discuss').length;
-  G('ss').innerHTML=[{l:'Total',v:t,d:null},{l:'High priority',v:h,d:'#f87171'},{l:'In progress',v:ip,d:'#60a5fa'},{l:'Done',v:dn,d:'#4ade80'},{l:'To discuss',v:di,d:'#fb923c'}]
+  G('ss').innerHTML=[{l:'Total',v:t,d:null},{l:'High priority',v:h,d:'#ef4444'},{l:'In progress',v:ip,d:'#3b82f6'},{l:'Done',v:dn,d:'#22c55e'},{l:'To discuss',v:di,d:'#f59e0b'}]
     .map(s=>`<div class="si2">${s.d?`<div class="sdot" style="background:${s.d}"></div>`:''}<strong>${s.v}</strong>${s.l}</div>`).join('');
 }
 
@@ -990,7 +1011,7 @@ async function upd(id,field,value){
   const idx=issues.findIndex(i=>i.id===id);if(idx<0)return;
   const nowUpd=new Date().toISOString();
   issues[idx][field]=value;issues[idx].updated_by=me;issues[idx].updated_at=nowUpd;
-  saveLocal();renderStats();renderCounts();
+  saveLocal();rt();renderStats();renderCounts();
   if(selId===id)openDP(id);
   try{await qpatch('issues',id,{[field]:value,updated_by:me,updated_at:nowUpd})}catch(e){toast('Save failed: '+e.message,'err')}
 }
