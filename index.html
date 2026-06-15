@@ -768,7 +768,7 @@ function renderCounts(){
       var vff=VM[vF];if(vff)base=base.filter(function(i){return (i[vff]||"")===vF;});
     }
   }
-  var shown=filtered();s("fa",shown.length);
+  s("fa",base.length);
   function cntTab(fn, colGroup){
     // Apply only active filters from OTHER column groups (not same group)
     var otherFilters=Array.from(activeFilters).filter(function(f){return filterGroupOf(f)!==colGroup;});
