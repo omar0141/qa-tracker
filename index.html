@@ -202,6 +202,7 @@ td.tdn{height:auto;padding:10px 12px}
 async function deleteIssue(){
   const id=G('dpdb').dataset.id;
   if(!id)return;
+  if(!confirm("Flag this issue as deleted? It can be restored later."))return;
   if(!confirm('Flag this issue as deleted? It can be restored later.'))return;
   const idx=issues.findIndex(i=>i.id===id);
   if(idx>=0)issues[idx].is_deleted=true;
@@ -213,6 +214,7 @@ async function deleteIssue(){
 async function restoreIssue(){
   const id=G('dpdb').dataset.id;
   if(!id)return;
+  if(!confirm("Restore this issue?"))return;
   const idx=issues.findIndex(i=>i.id===id);
   if(idx>=0)issues[idx].is_deleted=false;
   saveLocal();cp2();renderAll();
@@ -272,6 +274,7 @@ tbody tr.deleted-row .iname{text-decoration:line-through;color:var(--t3)}
 .si-del{margin-left:auto;opacity:0;background:none;border:none;color:var(--t3);font-size:11px;cursor:pointer;padding:2px 4px;border-radius:3px;transition:opacity .1s,color .1s;flex-shrink:0}
 .si:hover .si-del{opacity:1}
 .si-del:hover{color:#ef4444;opacity:1}
+.team-si{position:relative}.team-si .team-cnt{transition:opacity .15s}.team-si .si-del{position:absolute;right:4px;top:50%;transform:translateY(-50%);opacity:0;margin-left:0;transition:opacity .15s;background:none;border:none;color:var(--t3);font-size:11px;cursor:pointer;padding:2px 4px;border-radius:3px}.team-si:hover .team-cnt{opacity:0;pointer-events:none}.team-si:hover .si-del{opacity:1}.team-si .si-del:hover{color:#ef4444}
 </style>
 </head>
 <body>
@@ -690,48 +693,44 @@ function renderStats(){
 }
 
 function renderCounts(){
-  const s=(id,n)=>{const e=G(id);if(e)e.textContent=n};
-  const nd=i=>!i.is_deleted;
-
-  // Sidebar counts — always against full non-deleted dataset (absolute numbers)
-  const all=issues.filter(nd);
-  s('sca',all.length);
-  s('sch',all.filter(i=>i.priority==='High').length);
-  s('scp',all.filter(i=>i.status==='In Progress').length);
-  s('scn',all.filter(i=>i.status==='Not Started').length);
-  s('scd',all.filter(i=>i.status==='Done').length);
-  const delCnt=issues.filter(i=>i.is_deleted===true||i.is_deleted==='true'||i.is_deleted===1).length;
-  s('scx',delCnt);s('fx',delCnt);
-  // team counts rendered inside renderTeamSidebar
-
-  // Tab counts — respect current sidebar view (vF) so they match the visible rows
-  // Build base set: apply vF filter same way filtered() does, but without activeFilters/search/tab
-  let base=vF==='Deleted'
-    ? issues.filter(i=>i.is_deleted===true||i.is_deleted==='true'||i.is_deleted===1)
-    : issues.filter(nd);
-
-  if(vF!=='all'&&vF!=='Deleted'){
-    const VM={High:'priority',Medium:'priority',Low:'priority',
-      'In Progress':'status','Not Started':'status',Done:'status'};
-    teams.forEach(t=>{VM[t.name]='user'});
-    const f=VM[vF];
-    if(f)base=base.filter(i=>(i[f]||'')===vF);
+  var s=function(id,n){var e=G(id);if(e)e.textContent=n;};
+  var nd=function(i){return !i.is_deleted;};
+  var all=issues.filter(nd);
+  s("sca",all.length);
+  s("sch",all.filter(function(i){return i.priority==="High";}).length);
+  s("scp",all.filter(function(i){return i.status==="In Progress";}).length);
+  s("scn",all.filter(function(i){return i.status==="Not Started";}).length);
+  s("scd",all.filter(function(i){return i.status==="Done";}).length);
+  var delCnt=issues.filter(function(i){return i.is_deleted===true||i.is_deleted==="true"||i.is_deleted===1;}).length;
+  s("scx",delCnt);s("fx",delCnt);
+  var base;
+  if(vF==="Deleted"){base=issues.filter(function(i){return i.is_deleted===true||i.is_deleted==="true"||i.is_deleted===1;});}
+  else{
+    base=issues.filter(nd);
+    var q=(G("srq")&&G("srq").value||"").toLowerCase().trim();
+    if(q)base=base.filter(function(i){return ["name","type","user","status","priority","details"].some(function(k){return (i[k]||"").toLowerCase().includes(q);});});
+    if(vF!=="all"){
+      var VM={High:"priority",Medium:"priority",Low:"priority","In Progress":"status","Not Started":"status",Done:"status"};
+      teams.forEach(function(t){VM[t.name]="user";});
+      var vff=VM[vF];if(vff)base=base.filter(function(i){return (i[vff]||"")===vF;});
+    }
   }
-
-  const cn=fn=>base.filter(fn).length;
-  s('fa',base.length);
-  s('fh',cn(i=>i.priority==='High'));
-  s('fm',cn(i=>i.priority==='Medium'));
-  s('fl',cn(i=>i.priority==='Low'));
-  s('fn',cn(i=>i.status==='Not Started'));
-  s('fi',cn(i=>i.status==='In Progress'));
-  s('fd',cn(i=>i.status==='Done'));
-  s('fq',cn(i=>i.status==='Need to discuss'));
-  s('fc',cn(i=>(i.type||'').includes('Client')));
-  s('fp',cn(i=>(i.type||'').includes('Partner')));
-  s('fk',cn(i=>(i.type||'').includes('CPanel')));
+  var shown=filtered();s("fa",shown.length);
+  function cntTab(fn){
+    if(activeFilters.size===0)return base.filter(fn).length;
+    return base.filter(function(i){return fn(i)&&Array.from(activeFilters).every(function(f){if(f==="Client"||f==="Partner"||f==="CPanel")return (i.type||"").includes(f);return i.priority===f||i.status===f;});}).length;
+  }
+  s("fh",cntTab(function(i){return i.priority==="High";}));
+  s("fm",cntTab(function(i){return i.priority==="Medium";}));
+  s("fl",cntTab(function(i){return i.priority==="Low";}));
+  s("fn",cntTab(function(i){return i.status==="Not Started";}));
+  s("fi",cntTab(function(i){return i.status==="In Progress";}));
+  s("fd",cntTab(function(i){return i.status==="Done";}));
+  s("fq",cntTab(function(i){return i.status==="Need to discuss";}));
+  s("fc",cntTab(function(i){return (i.type||"").includes("Client");}));
+  s("fp",cntTab(function(i){return (i.type||"").includes("Partner");}));
+  s("fk",cntTab(function(i){return (i.type||"").includes("CPanel");}));
 }
-
 /* DETAIL PANEL */
 function selRow(id){
   if(selId===id){cp2();return}
@@ -939,23 +938,25 @@ async function loadTeams(){
 }
 
 function renderTeamSidebar(){
-  const list=G('team-list');
+  var list=G("team-list");
   if(!list)return;
-  // For team counts: how many non-deleted issues assigned to each member
-  // (always global, not affected by other filters — sidebar is for navigation)
-  const alive=issues.filter(i=>!i.is_deleted);
-  list.innerHTML=teams.map(t=>{
-    const cnt=alive.filter(i=>(i.user||'').toLowerCase()===t.name.toLowerCase()).length;
-    const isActive=vF===t.name;
-    return`<div class="si${isActive?' active':''}" onclick="sv('${esc(t.name)}',this)" data-team="${esc(t.name)}">
-      <span class="ic"><div style="width:8px;height:8px;border-radius:50%;background:${t.color};display:inline-block"></div></span>
-      ${esc(t.name)}
-      <span class="sc">${cnt}</span>
-      <button class="si-del" onclick="event.stopPropagation();deleteMember('${esc(t.id||t.name)}')" title="Remove">&#x2715;</button>
-    </div>`;
-  }).join('');
+  var alive=issues.filter(function(i){return !i.is_deleted;});
+  var html="";
+  teams.forEach(function(t){
+    var cnt=alive.filter(function(i){return (i.user||"").toLowerCase()===t.name.toLowerCase();}).length;
+    var cls="si team-si"+(vF===t.name?" active":"");
+    var dot=t.color||"#6366f1";
+    var tid=esc(t.id||t.name);
+    var tnm=esc(t.name);
+    html+='<div class="'+cls+'" onclick="sv(\"'+tnm+'\",this)" data-team="'+tnm+'">'
+      +'<span class="ic"><div style="width:8px;height:8px;border-radius:50%;background:'+dot+';display:inline-block"></div></span>'
+      +'<span class="team-si-name">'+tnm+'</span>'
+      +'<span class="sc team-cnt">'+cnt+'</span>'
+      +'<button class="si-del" onclick="event.stopPropagation();deleteMember(\"'+tid+'\")" title="Remove">&#x2715;</button>'
+      +"</div>";
+  });
+  list.innerHTML=html;
 }
-
 function renderAssigneeDropdown(){
   const sel=G('mus-sel');
   if(!sel)return;
