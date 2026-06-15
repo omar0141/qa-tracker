@@ -946,16 +946,26 @@ function renderTeamSidebar(){
     var cnt=alive.filter(function(i){return (i.user||"").toLowerCase()===t.name.toLowerCase();}).length;
     var cls="si team-si"+(vF===t.name?" active":"");
     var dot=t.color||"#6366f1";
-    var tid=esc(t.id||t.name);
-    var tnm=esc(t.name);
-    html+='<div class="'+cls+'" onclick="sv(\"'+tnm+'\",this)" data-team="'+tnm+'">'
+    html+='<div class="'+cls+'" data-team-name="'+esc(t.name)+'" data-team-id="'+esc(t.id||t.name)+'">'
       +'<span class="ic"><div style="width:8px;height:8px;border-radius:50%;background:'+dot+';display:inline-block"></div></span>'
-      +'<span class="team-si-name">'+tnm+'</span>'
+      +'<span class="team-si-name">'+esc(t.name)+'</span>'
       +'<span class="sc team-cnt">'+cnt+'</span>'
-      +'<button class="si-del" onclick="event.stopPropagation();deleteMember(\"'+tid+'\")" title="Remove">&#x2715;</button>'
+      +'<button class="si-del" data-del-id="'+esc(t.id||t.name)+'" title="Remove">&#x2715;</button>'
       +"</div>";
   });
   list.innerHTML=html;
+  // attach click handlers after render (avoids inline-onclick quote escaping issues)
+  list.querySelectorAll(".team-si").forEach(function(el){
+    el.addEventListener("click",function(e){
+      if(e.target.classList.contains("si-del"))return;
+      sv(el.dataset.teamName,el);
+    });
+    var delBtn=el.querySelector(".si-del");
+    if(delBtn)delBtn.addEventListener("click",function(e){
+      e.stopPropagation();
+      deleteMember(delBtn.dataset.delId);
+    });
+  });
 }
 function renderAssigneeDropdown(){
   const sel=G('mus-sel');
