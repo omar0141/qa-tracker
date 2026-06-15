@@ -835,22 +835,45 @@ function sv(val,el){
   G('tbt').textContent=L[val]||val;
   rt();renderStats();renderCounts();renderTeamSidebar();
 }
+// Filter column groups - selecting within a group deselects others in same group
+const FILTER_GROUPS = {
+  priority: ['High','Medium','Low'],
+  status:   ['Not Started','In Progress','Done','Need to discuss'],
+  type:     ['Client','Partner','CPanel'],
+};
+function filterGroupOf(val){
+  for(const g in FILTER_GROUPS) if(FILTER_GROUPS[g].includes(val)) return g;
+  return null;
+}
+
 function st(val,el){
   if(val==='all'){
     activeFilters.clear();
     document.querySelectorAll('.ft').forEach(b=>b.classList.remove('active'));
     document.querySelector('.ft').classList.add('active');
   }else{
-    // Remove 'All' active state
     document.querySelector('.ft').classList.remove('active');
     if(activeFilters.has(val)){
+      // Toggle off
       activeFilters.delete(val);
       el.classList.remove('active');
     }else{
+      // Deselect any other value from the same column group first
+      const grp = filterGroupOf(val);
+      if(grp){
+        FILTER_GROUPS[grp].forEach(function(v){
+          if(v!==val && activeFilters.has(v)){
+            activeFilters.delete(v);
+            // Remove active class from that tab
+            document.querySelectorAll('.ft').forEach(function(b){
+              if(b.textContent.trim().startsWith(v)) b.classList.remove('active');
+            });
+          }
+        });
+      }
       activeFilters.add(val);
       el.classList.add('active');
     }
-    // If nothing selected, go back to all
     if(activeFilters.size===0){
       document.querySelector('.ft').classList.add('active');
     }
