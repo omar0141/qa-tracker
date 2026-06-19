@@ -335,6 +335,30 @@ tbody tr.deleted-row .iname{text-decoration:line-through;color:var(--t3)}
 .ft[data-val="Client"].active{border-bottom-color:#6366f1;color:#3730a3}
 .ft[data-val="Partner"].active{border-bottom-color:#ec4899;color:#831843}
 .ft[data-val="CPanel"].active{border-bottom-color:#14b8a6;color:#134e4a}
+.iname-row{display:flex;align-items:flex-start;gap:6px;justify-content:space-between}
+.iname-row .iname{flex:1;min-width:0}
+.comment-btn{display:flex;align-items:center;gap:3px;background:none;border:none;color:var(--t3);cursor:pointer;padding:3px 5px;border-radius:4px;transition:background .12s,color .12s,opacity .12s;flex-shrink:0;opacity:0;margin-top:1px}
+tr:hover .comment-btn{opacity:.55}
+.comment-btn:hover{background:var(--hv);color:var(--ac);opacity:1!important}
+.comment-btn.has-comments{opacity:1;color:var(--ac)}
+.comment-count{font-size:10px;font-weight:700;color:inherit;line-height:1}
+.dp-comments{margin-top:16px;padding-top:14px;border-top:1px solid var(--bd)}
+.comment-list{display:flex;flex-direction:column;gap:10px;margin-bottom:12px;max-height:240px;overflow-y:auto}
+.comment-list::-webkit-scrollbar{width:4px}
+.comment-list::-webkit-scrollbar-thumb{background:var(--bd);border-radius:2px}
+.comment-empty{font-size:12px;color:var(--t3);padding:8px 0}
+.comment-item{display:flex;gap:8px;align-items:flex-start}
+.comment-av{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;flex-shrink:0;margin-top:1px}
+.comment-body{flex:1;min-width:0}
+.comment-head{display:flex;align-items:baseline;gap:6px;margin-bottom:2px}
+.comment-author{font-size:12px;font-weight:600;color:var(--tx)}
+.comment-time{font-size:11px;color:var(--t3)}
+.comment-text{font-size:13px;color:var(--t2);line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.comment-input-row{display:flex;gap:8px;align-items:flex-end}
+.comment-input-row textarea{flex:1;font-family:var(--f);font-size:13px;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:var(--r6);padding:8px 10px;outline:none;resize:none;line-height:1.4;transition:border-color .15s}
+.comment-input-row textarea:focus{border-color:var(--ac)}
+.comment-send{background:var(--tx);color:#fff;border:none;border-radius:var(--r6);width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-size:14px;transition:opacity .15s}
+.comment-send:hover{opacity:.8}
 </style>
 </head>
 <body>
@@ -569,6 +593,8 @@ let me=null,uid=null,myC=null;
 let teams=[];
 let rounds=[];
 let currentRoundId=null; // null = All rounds view
+let comments=[]; // all comments across all issues, loaded from Supabase
+let notifPermission='default';
 let issues=[],online={},editing={};
 let sK=null,sD=1,vF='all',activeFilters=new Set(),selId=null,editId=null;
 const cmap={};
@@ -613,6 +639,7 @@ function startSession(n){
   G('lo').style.display='none';G('app').style.display='block';
   G('mav').textContent=ini(n);G('mav').style.background=myC;G('mn').textContent=n;
   loadLocal();loadTeamsLocal();loadRoundsLocal();renderAll();initSB();
+  requestNotifPermission();
 }
 // Auto-login if a username was saved previously (persists across refresh/reload)
 (function(){
@@ -660,6 +687,7 @@ async function initSB(){
     setConn(true);
     await loadTeams();
     await loadRounds();
+    await loadComments();
     await seedOrLoad();
     startRT();
     startPres();
@@ -686,6 +714,7 @@ function startRT(){
   ws.onopen=()=>{
     ws.send(JSON.stringify({topic:'realtime:public:issues',event:'phx_join',payload:{config:{broadcast:{self:false},presence:{key:''},postgres_changes:[{event:'*',schema:'public',table:'issues'}]},access_token:KEY},ref:'1'}));
     ws.send(JSON.stringify({topic:'realtime:public:teams',event:'phx_join',payload:{config:{broadcast:{self:false},presence:{key:''},postgres_changes:[{event:'*',schema:'public',table:'teams'}]},access_token:KEY},ref:'2'}));
+    ws.send(JSON.stringify({topic:'realtime:public:comments',event:'phx_join',payload:{config:{broadcast:{self:false},presence:{key:''},postgres_changes:[{event:'*',schema:'public',table:'comments'}]},access_token:KEY},ref:'4'}));
     ws.send(JSON.stringify({topic:'realtime:editing',event:'phx_join',payload:{config:{broadcast:{self:false}},access_token:KEY},ref:'3'}));
     wsT=setInterval(()=>ws.readyState===1&&ws.send(JSON.stringify({topic:'phoenix',event:'heartbeat',payload:{},ref:'hb'})),25000);
   };
@@ -712,13 +741,42 @@ function startRT(){
 
         if(table==='issues'){
           if(type==='INSERT'&&rec&&!issues.find(i=>i.id===rec.id)){
-            issues.push(rec);toast('New issue added');saveLocal();renderAll();
+            issues.push(rec);
+            saveLocal();renderAll();
+            if(rec.created_by&&rec.created_by!==me){
+              toast(rec.created_by+' added a new issue');
+              notify('New issue from '+rec.created_by,rec.name||'',rec.id+'-new');
+            }
           }else if(type==='UPDATE'&&rec){
             const i=issues.findIndex(x=>x.id===rec.id);
+            const prev=i>=0?issues[i]:null;
             if(i>=0)issues[i]=rec;else issues.push(rec);
             saveLocal();renderAll();
+            if(selId===rec.id)openDP(rec.id);
+            if(rec.updated_by&&rec.updated_by!==me){
+              const changedField=prev&&prev.status!==rec.status?('status to '+rec.status)
+                :prev&&prev.priority!==rec.priority?('priority to '+rec.priority)
+                :prev&&prev.type!==rec.type?('type to '+rec.type)
+                :'an issue';
+              notify(rec.updated_by+' updated an issue',changedField,rec.id+'-upd-'+rec.updated_at);
+            }
           }else if(type==='DELETE'&&old){
             issues=issues.filter(x=>x.id!==old.id);saveLocal();renderAll();
+          }
+        }else if(table==='comments'){
+          if(type==='INSERT'&&rec&&!comments.find(c=>c.id===rec.id)){
+            comments.push(rec);
+            if(selId===rec.issue_id)renderComments(rec.issue_id);
+            rt();
+            if(rec.author&&rec.author!==me){
+              const relatedIssue=issues.find(i=>i.id===rec.issue_id);
+              toast(rec.author+' commented on an issue');
+              notify(rec.author+' commented',rec.text||'',rec.id+'-comment');
+            }
+          }else if(type==='DELETE'&&old){
+            comments=comments.filter(c=>c.id!==old.id);
+            if(selId===old.issue_id)renderComments(old.issue_id);
+            rt();
           }
         }else if(table==='teams'){
           if(type==='INSERT'&&rec&&!teams.find(t=>t.id===rec.id)){
@@ -841,10 +899,17 @@ function rt(){
     const urlsJson=JSON.stringify(urls).replace(/"/g,'&quot;');
     const thumbs=urls.map(u=>`<img class="thumb" src="${esc(u)}" onclick="event.stopPropagation();olb('${esc(u)}',JSON.parse(this.dataset.urls))" data-urls="${urlsJson}" onerror="this.style.display='none'" loading="lazy">`).join('');
     const isDel=iss.is_deleted===true||iss.is_deleted==='true'||iss.is_deleted===1;
+    const commentCount=comments.filter(c=>c.issue_id===iss.id).length;
     return`<tr class="${selId===iss.id?'sel':ed?'rem':isDel?'deleted-row':''}" onclick="selRow('${iss.id}')">
       <td><span class="tidx">${idx+1}</span></td>
       <td class="tdn">
-        <div class="iname">${esc(iss.name||'')}</div>
+        <div class="iname-row">
+          <div class="iname">${esc(iss.name||'')}</div>
+          <button class="comment-btn${commentCount>0?' has-comments':''}" onclick="event.stopPropagation();selRow('${iss.id}');setTimeout(()=>focusCommentInput(),350)" title="${commentCount>0?commentCount+' comment'+(commentCount>1?'s':''):'Add comment'}">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none"><path d="M1.5 2.5h13a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-8l-3.5 3v-3h-1.5a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+            ${commentCount>0?`<span class="comment-count">${commentCount}</span>`:''}
+          </button>
+        </div>
         ${isDel?'<span class="deleted-badge">&#x1F5D1; Deleted</span>':''}
         ${ed?`<div class="eb"><div class="ebd"></div>${esc(ed.name)} is editing</div>`:''}
       </td>
@@ -953,7 +1018,16 @@ function openDP(id){
       </div>
     </div>
     ${urls.length?`<div class="dpl">Attachments (${urls.length})</div><div class="dpimgs">${urls.map(u=>`<img class="dpimg" src="${esc(u)}" onclick="olb('${esc(u)}',JSON.parse(this.dataset.urls))" data-urls="${JSON.stringify(urls).replace(/"/g,'&quot;')}" onerror="this.parentNode&&this.parentNode.removeChild(this)" loading="lazy">`).join('')}</div>`:''}
+    <div class="dp-comments">
+      <div class="dpl" style="margin-bottom:10px">Comments</div>
+      <div class="comment-list" id="comment-list"></div>
+      <div class="comment-input-row">
+        <textarea id="comment-input" placeholder="Write a comment..." rows="2" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitComment('${id}')}"></textarea>
+        <button class="comment-send" onclick="submitComment('${id}')" title="Send (Enter)">&#x27A4;</button>
+      </div>
+    </div>
   `;
+  renderComments(id);
   G('dpeb').dataset.id=id;
   G('dpdb').dataset.id=id;
   const isDel2=iss.is_deleted===true||iss.is_deleted==='true'||iss.is_deleted===1;
@@ -1484,6 +1558,85 @@ async function deleteRound(roundId){
   renderAll();renderRoundSidebar();
   toast('Round deleted, issues moved');
   try{await fetch(SB+'/rest/v1/rounds?id=eq.'+roundId,{method:'DELETE',headers:H()})}catch(e){}
+}
+
+/* COMMENTS */
+async function loadComments(){
+  try{
+    const data=await qget('comments','select=*&order=created_at');
+    comments=data||[];
+  }catch(e){console.warn('comments load failed',e)}
+}
+
+function renderComments(issueId){
+  const list=G('comment-list');
+  if(!list)return;
+  const items=comments.filter(c=>c.issue_id===issueId).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+  if(!items.length){
+    list.innerHTML='<div class="comment-empty">No comments yet. Be the first to comment.</div>';
+    return;
+  }
+  list.innerHTML=items.map(c=>{
+    const color=uc(c.author||'');
+    return `<div class="comment-item">
+      <div class="comment-av" style="background:${color}">${ini(c.author||'?')}</div>
+      <div class="comment-body">
+        <div class="comment-head"><span class="comment-author">${esc(c.author||'Unknown')}</span><span class="comment-time">${fmtDate(c.created_at)}</span></div>
+        <div class="comment-text">${esc(c.text||'')}</div>
+      </div>
+    </div>`;
+  }).join('');
+  list.scrollTop=list.scrollHeight;
+}
+
+function focusCommentInput(){
+  const inp=G('comment-input');
+  if(inp)inp.focus();
+}
+
+async function submitComment(issueId){
+  const inp=G('comment-input');
+  if(!inp)return;
+  const text=inp.value.trim();
+  if(!text)return;
+  const payload={issue_id:issueId,author:me,text:text};
+  inp.value='';
+  inp.disabled=true;
+  try{
+    const ins=await qpost('comments',[payload]);
+    if(ins&&ins[0]){
+      comments.push(ins[0]);
+      renderComments(issueId);
+      rt(); // refresh comment count badge in table
+    }
+  }catch(e){
+    toast('Comment failed: '+e.message,'err');
+    inp.value=text;
+  }finally{
+    inp.disabled=false;
+    inp.focus();
+  }
+}
+
+/* BROWSER NOTIFICATIONS */
+async function requestNotifPermission(){
+  if(!('Notification' in window)){notifPermission='unsupported';return;}
+  if(Notification.permission==='granted'){notifPermission='granted';return;}
+  if(Notification.permission==='denied'){notifPermission='denied';return;}
+  try{
+    const perm=await Notification.requestPermission();
+    notifPermission=perm;
+  }catch(e){notifPermission='denied';}
+}
+
+function notify(title,body,tag){
+  if(notifPermission!=='granted')return;
+  if(document.hasFocus())return; // don't spam notifications while user is actively looking at the tab
+  try{
+    const n=new Notification(title,{body:body,tag:tag,icon:''});
+    n.onclick=function(){window.focus();n.close();};
+    setTimeout(()=>n.close(),8000);
+  }catch(e){}
 }
 
 /* CLOUDINARY UPLOAD */
