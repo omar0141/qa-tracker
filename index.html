@@ -641,20 +641,7 @@ function startSession(n){
   loadLocal();loadTeamsLocal();loadRoundsLocal();renderAll();initSB();
   requestNotifPermission();
 }
-// Auto-login if a username was saved previously (persists across refresh/reload)
-(function(){
-  try{
-    const saved=localStorage.getItem('qa_username');
-    if(saved){
-      console.log('[QA Tracker] Auto-login as', saved);
-      startSession(saved);
-    }else{
-      console.log('[QA Tracker] No saved username, showing login screen');
-    }
-  }catch(e){
-    console.error('[QA Tracker] Auto-login failed:', e);
-  }
-})();
+
 
 /* SUPABASE via plain fetch - avoids DataCloneError from postMessage in supabase-js */
 const H=()=>({'Content-Type':'application/json','apikey':KEY,'Authorization':'Bearer '+KEY});
@@ -1760,6 +1747,20 @@ async function uploadOne(file){
   }catch(e){}
 }
 
+// Auto-login if a username was saved previously (persists across refresh/reload)
+(function(){
+  try{
+    const saved=localStorage.getItem('qa_username');
+    if(saved){
+      console.log('[QA Tracker] Auto-login as', saved);
+      startSession(saved);
+    }else{
+      console.log('[QA Tracker] No saved username, showing login screen');
+    }
+  }catch(e){
+    console.error('[QA Tracker] Auto-login failed:', e);
+  }
+})();
 </script>
 
 <!-- CONFIRM DIALOG -->
