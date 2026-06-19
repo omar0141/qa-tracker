@@ -304,6 +304,12 @@ tbody tr.deleted-row .iname{text-decoration:line-through;color:var(--t3)}
 .si:hover .si-del{opacity:1}
 .si-del:hover{color:#ef4444;opacity:1}
 .team-si{position:relative}.team-si .team-cnt{transition:opacity .15s}.team-si .si-del{position:absolute;right:4px;top:50%;transform:translateY(-50%);opacity:0;margin-left:0;transition:opacity .15s;background:none;border:none;color:var(--t3);font-size:11px;cursor:pointer;padding:2px 4px;border-radius:3px}.team-si:hover .team-cnt{opacity:0;pointer-events:none}.team-si:hover .si-del{opacity:1}.team-si .si-del:hover{color:#ef4444}
+.round-si{position:relative}
+.round-si .sc{transition:opacity .15s}
+.round-si .si-del{position:absolute;right:4px;top:50%;transform:translateY(-50%);opacity:0;margin-left:0;transition:opacity .15s;background:none;border:none;color:var(--t3);font-size:11px;cursor:pointer;padding:2px 4px;border-radius:3px}
+.round-si:hover .sc{opacity:0;pointer-events:none}
+.round-si:hover .si-del{opacity:1}
+.round-si .si-del:hover{color:#ef4444}
 #cdialog .mp{animation:cdIn .18s cubic-bezier(.4,0,.2,1)}
 @keyframes cdIn{from{transform:scale(.96) translateY(-6px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
 .cd-danger{background:#dc2626;color:#fff;border-color:#dc2626}
@@ -348,6 +354,20 @@ tbody tr.deleted-row .iname{text-decoration:line-through;color:var(--t3)}
     <div class="sbh">
       <div class="sblo"><svg viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4" stroke="white" stroke-width="1.5"/><circle cx="6" cy="6" r="1.5" fill="white"/></svg></div>
       <div><div class="sbn">QA Tracker</div><div class="sbp">YallaFix QA</div></div>
+    </div>
+    <div class="sbs" style="margin-top:8px">
+      <div class="sbl-row">
+        <div class="sbl">Rounds</div>
+        <button class="sbl-add" onclick="openAddRound()" title="Add round">+</button>
+      </div>
+      <div id="round-list"></div>
+      <div id="add-round-form" style="display:none">
+        <input class="si-input" id="new-round-name" placeholder="Round name..." maxlength="40" onkeydown="if(event.key==='Enter')saveRound();if(event.key==='Escape')closeAddRound()">
+        <div class="si-form-actions">
+          <button class="si-form-btn si-form-cancel" onclick="closeAddRound()">Cancel</button>
+          <button class="si-form-btn si-form-save" onclick="saveRound()">Add</button>
+        </div>
+      </div>
     </div>
     <div class="sbs" style="margin-top:8px">
       <div class="sbl">Views</div>
@@ -543,6 +563,8 @@ const SEED=[
 
 let me=null,uid=null,myC=null;
 let teams=[];
+let rounds=[];
+let currentRoundId=null; // null = All rounds view
 let issues=[],online={},editing={};
 let sK=null,sD=1,vF='all',activeFilters=new Set(),selId=null,editId=null;
 const cmap={};
@@ -571,7 +593,7 @@ function go(){
   myC=AVC[Math.floor(Math.random()*AVC.length)];cmap[n]=myC;
   G('lo').style.display='none';G('app').style.display='block';
   G('mav').textContent=ini(n);G('mav').style.background=myC;G('mn').textContent=n;
-  loadLocal();loadTeamsLocal();renderAll();initSB();
+  loadLocal();loadTeamsLocal();loadRoundsLocal();renderAll();initSB();
 }
 
 /* SUPABASE via plain fetch - avoids DataCloneError from postMessage in supabase-js */
@@ -604,6 +626,7 @@ async function initSB(){
     await qget('issues','select=id&limit=1');
     setConn(true);
     await loadTeams();
+    await loadRounds();
     await seedOrLoad();
     startRT();
     startPres();
@@ -628,24 +651,59 @@ function startRT(){
   const url=SB.replace('https://','wss://')+'/realtime/v1/websocket?apikey='+KEY+'&vsn=1.0.0';
   ws=new WebSocket(url);
   ws.onopen=()=>{
-    ws.send(JSON.stringify({topic:'realtime:public:issues',event:'phx_join',payload:{config:{broadcast:{self:false},postgres_changes:[{event:'*',schema:'public',table:'issues'}]}},ref:'1'}));
-    ws.send(JSON.stringify({topic:'realtime:editing',event:'phx_join',payload:{config:{broadcast:{self:false}}},ref:'2'}));
+    ws.send(JSON.stringify({topic:'realtime:public:issues',event:'phx_join',payload:{config:{broadcast:{self:false},presence:{key:''},postgres_changes:[{event:'*',schema:'public',table:'issues'}]}},ref:'1'}));
+    ws.send(JSON.stringify({topic:'realtime:public:teams',event:'phx_join',payload:{config:{broadcast:{self:false},presence:{key:''},postgres_changes:[{event:'*',schema:'public',table:'teams'}]}},ref:'2'}));
+    ws.send(JSON.stringify({topic:'realtime:editing',event:'phx_join',payload:{config:{broadcast:{self:false}}},ref:'3'}));
     wsT=setInterval(()=>ws.readyState===1&&ws.send(JSON.stringify({topic:'phoenix',event:'heartbeat',payload:{},ref:'hb'})),25000);
   };
   ws.onmessage=ev=>{
     try{
       const msg=JSON.parse(ev.data);
-      if(msg.event==='INSERT'){const r=msg.payload?.data?.record;if(r&&!issues.find(i=>i.id===r.id)){issues.push(r);toast('New issue added');saveLocal();renderAll();}}
-      else if(msg.event==='UPDATE'){const r=msg.payload?.data?.record;if(r){const i=issues.findIndex(x=>x.id===r.id);if(i>=0)issues[i]=r;saveLocal();renderAll();}}
-      else if(msg.event==='DELETE'){const r=msg.payload?.data?.old_record;if(r){issues=issues.filter(x=>x.id!==r.id);saveLocal();renderAll();}}
-      if(msg.event==='broadcast'&&msg.payload?.event==='editing'){
+
+      // Supabase Realtime wraps postgres_changes events like:
+      // { topic, event: "postgres_changes", payload: { data: { type: "INSERT"|"UPDATE"|"DELETE", record, old_record, table } } }
+      if(msg.event==='postgres_changes'){
+        const d=msg.payload&&msg.payload.data;
+        if(!d)return;
+        const table=d.table;
+        const type=d.type;
+        const rec=d.record;
+        const old=d.old_record;
+
+        if(table==='issues'){
+          if(type==='INSERT'&&rec&&!issues.find(i=>i.id===rec.id)){
+            issues.push(rec);toast('New issue added');saveLocal();renderAll();
+          }else if(type==='UPDATE'&&rec){
+            const i=issues.findIndex(x=>x.id===rec.id);
+            if(i>=0)issues[i]=rec;else issues.push(rec);
+            saveLocal();renderAll();
+          }else if(type==='DELETE'&&old){
+            issues=issues.filter(x=>x.id!==old.id);saveLocal();renderAll();
+          }
+        }else if(table==='teams'){
+          if(type==='INSERT'&&rec&&!teams.find(t=>t.id===rec.id)){
+            teams.push(rec);toast(rec.name+' joined the team');
+          }else if(type==='UPDATE'&&rec){
+            const i=teams.findIndex(t=>t.id===rec.id);
+            if(i>=0)teams[i]=rec;
+          }else if(type==='DELETE'&&old){
+            teams=teams.filter(t=>t.id!==old.id);
+          }
+          localStorage.setItem('qa_teams_v1',JSON.stringify(teams));
+          renderTeamSidebar();renderAssigneeDropdown();renderCounts();
+        }
+        return;
+      }
+
+      // Broadcast events (editing indicator)
+      if(msg.event==='broadcast'&&msg.payload&&msg.payload.event==='editing'){
         const p=msg.payload.payload;if(p.uid===uid)return;
         editing[p.rowId]={name:p.name,color:p.color};
         clearTimeout(editing['_t'+p.rowId]);
         editing['_t'+p.rowId]=setTimeout(()=>{delete editing[p.rowId];rt()},5000);
         rt();
       }
-    }catch(e){}
+    }catch(e){console.warn('RT parse error',e)}
   };
   ws.onclose=()=>{clearInterval(wsT);setTimeout(startRT,3000)};
 }
@@ -682,7 +740,7 @@ function loadLocal(){try{const s=localStorage.getItem('qa_v6');if(s)issues=JSON.
 function saveLocal(){localStorage.setItem('qa_v6',JSON.stringify(issues))}
 
 /* RENDER */
-function renderAll(){rt();renderStats();renderCounts();renderTeamSidebar();}
+function renderAll(){rt();renderStats();renderCounts();renderTeamSidebar();renderRoundSidebar();}
 
 function renderOnline(){
   G('os').innerHTML=Object.values(online).map(u=>`<div class="oa" style="background:${u.color}">${ini(u.name)}<span class="oat">${esc(u.name)}</span></div>`).join('');
@@ -690,6 +748,7 @@ function renderOnline(){
 
 function filtered(){
   let d=[...issues];
+  if(currentRoundId)d=d.filter(i=>i.round_id===currentRoundId);
   // Always hide deleted unless explicitly viewing Deleted
   if(vF==='Deleted'){
     d=d.filter(i=>i.is_deleted===true||i.is_deleted==='true'||i.is_deleted===1);
@@ -769,18 +828,20 @@ function renderStats(){
 function renderCounts(){
   var s=function(id,n){var e=G(id);if(e)e.textContent=n;};
   var nd=function(i){return !i.is_deleted;};
-  var all=issues.filter(nd);
+  var roundScope=currentRoundId?issues.filter(function(i){return i.round_id===currentRoundId;}):issues;
+  var all=roundScope.filter(nd);
   s("sca",all.length);
   s("sch",all.filter(function(i){return i.priority==="High";}).length);
   s("scp",all.filter(function(i){return i.status==="In Progress";}).length);
   s("scn",all.filter(function(i){return i.status==="Not Started";}).length);
   s("scd",all.filter(function(i){return i.status==="Done";}).length);
-  var delCnt=issues.filter(function(i){return i.is_deleted===true||i.is_deleted==="true"||i.is_deleted===1;}).length;
+  var delCnt=roundScope.filter(function(i){return i.is_deleted===true||i.is_deleted==="true"||i.is_deleted===1;}).length;
   s("scx",delCnt);s("fx",delCnt);
+  var roundFiltered=currentRoundId?issues.filter(function(i){return i.round_id===currentRoundId;}):issues;
   var base;
-  if(vF==="Deleted"){base=issues.filter(function(i){return i.is_deleted===true||i.is_deleted==="true"||i.is_deleted===1;});}
+  if(vF==="Deleted"){base=roundFiltered.filter(function(i){return i.is_deleted===true||i.is_deleted==="true"||i.is_deleted===1;});}
   else{
-    base=issues.filter(nd);
+    base=roundFiltered.filter(nd);
     var q=(G("srq")&&G("srq").value||"").toLowerCase().trim();
     if(q)base=base.filter(function(i){return ["name","type","user","status","priority","details"].some(function(k){return (i[k]||"").toLowerCase().includes(q);});});
     if(vF!=="all"){
@@ -1085,12 +1146,12 @@ function openEdit(id){
 }
 async function sm(){
   const now=new Date().toISOString();
-  const data={name:G('mna').value.trim(),priority:G('mpr').value,status:G('mst').value,type:G('mty').value,user:G('mus').value.trim(),details:G('mdt').value.trim(),url:pendingUrls.join(',')};
+  const data={name:G('mna').value.trim(),priority:G('mpr').value,status:G('mst').value,type:G('mty').value,user:G('mus').value.trim(),details:G('mdt').value.trim(),url:pendingUrls.join(','),round_id:editId?undefined:(currentRoundId||(rounds[0]&&rounds[0].id))};
   if(!data.name){toast('Description required','warn');return}
   if(editId){
     const idx=issues.findIndex(i=>i.id===editId);if(idx>=0)Object.assign(issues[idx],data);
     saveLocal();
-    const metaUpd={...data,updated_by:me,updated_at:now};
+    const editData={...data};delete editData.round_id;const metaUpd={...editData,updated_by:me,updated_at:now};
     const idx2=issues.findIndex(i=>i.id===editId);if(idx2>=0)Object.assign(issues[idx2],{updated_by:me,updated_at:now});
     try{await qpatch('issues',editId,metaUpd);toast('Issue updated')}catch(e){toast('Update failed: '+e.message,'err');return}
   }else{
@@ -1253,6 +1314,136 @@ async function deleteMember(idOrName){
   if(vF===t.name){const _si=document.querySelector('.si');if(_si)sv('all',_si);}
   toast(t.name+' removed from team');
   try{if(t.id&&!t.id.startsWith('t_'))await fetch(SB+'/rest/v1/teams?id=eq.'+t.id,{method:'DELETE',headers:H()})}catch(e){}
+}
+
+/* ROUNDS */
+const DEFAULT_ROUND = {id:'r_1',name:'Round 1'};
+
+function loadRoundsLocal(){
+  try{
+    const s=localStorage.getItem('qa_rounds_v1');
+    rounds=s?JSON.parse(s):[JSON.parse(JSON.stringify(DEFAULT_ROUND))];
+  }catch{rounds=[JSON.parse(JSON.stringify(DEFAULT_ROUND))]}
+  renderRoundSidebar();
+}
+
+async function loadRounds(){
+  try{
+    const data=await qget('rounds','select=*&order=created_at');
+    if(data.length===0){
+      const ins=await qpost('rounds',[{name:'Round 1'}]);
+      rounds=ins;
+    }else{
+      rounds=data;
+    }
+    localStorage.setItem('qa_rounds_v1',JSON.stringify(rounds));
+    renderRoundSidebar();
+
+    // Backfill: any issue without round_id gets assigned to the first round
+    if(rounds[0]){
+      const firstRoundId=rounds[0].id;
+      const toFix=issues.filter(i=>!i.round_id);
+      for(const iss of toFix){
+        iss.round_id=firstRoundId;
+        try{await qpatch('issues',iss.id,{round_id:firstRoundId})}catch(e){}
+      }
+      if(toFix.length)saveLocal();
+    }
+  }catch(e){console.warn('rounds load failed',e)}
+}
+
+function renderRoundSidebar(){
+  const list=G('round-list');
+  if(!list)return;
+  const alive=issues.filter(i=>!i.is_deleted);
+  let html='';
+  // "All rounds" pseudo-item
+  html+='<div class="si round-si'+(currentRoundId===null?' active':'')+'" data-round-id="">'
+    +'<span class="ic">&#8801;</span><span class="team-si-name">All Rounds</span>'
+    +'<span class="sc">'+alive.length+'</span>'
+    +'</div>';
+  rounds.forEach(function(r){
+    const cnt=alive.filter(function(i){return i.round_id===r.id;}).length;
+    const isActive=currentRoundId===r.id;
+    html+='<div class="si round-si'+(isActive?' active':'')+'" data-round-id="'+esc(r.id)+'">'
+      +'<span class="ic">&#9711;</span><span class="team-si-name">'+esc(r.name)+'</span>'
+      +'<span class="sc round-cnt">'+cnt+'</span>'
+      +'<button class="si-del" data-del-round="'+esc(r.id)+'" title="Remove round">&#x2715;</button>'
+      +'</div>';
+  });
+  list.innerHTML=html;
+  list.querySelectorAll('.round-si').forEach(function(el){
+    el.addEventListener('click',function(e){
+      if(e.target.classList.contains('si-del'))return;
+      selectRound(el.dataset.roundId||null,el);
+    });
+    const delBtn=el.querySelector('.si-del');
+    if(delBtn)delBtn.addEventListener('click',function(e){
+      e.stopPropagation();
+      deleteRound(delBtn.dataset.delRound);
+    });
+  });
+}
+
+function selectRound(roundId,el){
+  currentRoundId=roundId||null;
+  document.querySelectorAll('.round-si').forEach(b=>b.classList.remove('active'));
+  if(el)el.classList.add('active');
+  rt();renderStats();renderCounts();renderRoundSidebar();
+}
+
+function openAddRound(){
+  G('add-round-form').style.display='block';
+  setTimeout(()=>G('new-round-name').focus(),50);
+}
+function closeAddRound(){
+  G('add-round-form').style.display='none';
+  G('new-round-name').value='';
+}
+
+async function saveRound(){
+  const name=G('new-round-name').value.trim();
+  if(!name)return;
+  if(rounds.find(r=>r.name.toLowerCase()===name.toLowerCase())){
+    toast('Round already exists','warn');return;
+  }
+  const newRound={name};
+  const tempId='r_'+Math.random().toString(36).slice(2);
+  rounds.push({...newRound,id:tempId});
+  localStorage.setItem('qa_rounds_v1',JSON.stringify(rounds));
+  renderRoundSidebar();
+  closeAddRound();
+  toast('Round "'+name+'" created');
+  try{
+    const ins=await qpost('rounds',[newRound]);
+    if(ins[0]){
+      const idx=rounds.findIndex(r=>r.id===tempId);
+      if(idx>=0)rounds[idx]=ins[0];
+      localStorage.setItem('qa_rounds_v1',JSON.stringify(rounds));
+      renderRoundSidebar();
+    }
+  }catch(e){console.warn('round save failed',e)}
+}
+
+async function deleteRound(roundId){
+  if(rounds.length<=1){toast('At least one round is required','warn');return;}
+  const round=rounds.find(r=>r.id===roundId);
+  if(!round)return;
+  if(!(await showConfirm('Delete round','Issues in "'+round.name+'" will be moved to the first round. This cannot be undone.','Delete','danger')))return;
+  const fallbackId=rounds.find(r=>r.id!==roundId)?.id;
+  // Reassign issues
+  const affected=issues.filter(i=>i.round_id===roundId);
+  for(const iss of affected){
+    iss.round_id=fallbackId;
+    try{await qpatch('issues',iss.id,{round_id:fallbackId})}catch(e){}
+  }
+  saveLocal();
+  rounds=rounds.filter(r=>r.id!==roundId);
+  localStorage.setItem('qa_rounds_v1',JSON.stringify(rounds));
+  if(currentRoundId===roundId)currentRoundId=null;
+  renderAll();renderRoundSidebar();
+  toast('Round deleted, issues moved');
+  try{await fetch(SB+'/rest/v1/rounds?id=eq.'+roundId,{method:'DELETE',headers:H()})}catch(e){}
 }
 
 /* CLOUDINARY UPLOAD */
