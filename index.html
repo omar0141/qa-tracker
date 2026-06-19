@@ -32,6 +32,21 @@ body{font-family:var(--f);background:var(--bg);color:var(--tx);font-size:13px;li
 hr.ld{border:none;border-top:1px solid var(--bd);margin:28px 0}
 .lh{font-size:11px;color:var(--t3);text-align:center}
 
+/* LOADING OVERLAY */
+#loading-overlay{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:9998}
+#loading-overlay.show{display:flex}
+.loading-box{display:flex;flex-direction:column;align-items:center;gap:18px}
+.loading-spinner{width:32px;height:32px;border-radius:50%;border:3px solid var(--bd);border-top-color:var(--ac);animation:lspin .7s linear infinite}
+@keyframes lspin{to{transform:rotate(360deg)}}
+.loading-text{font-size:13px;font-weight:600;color:var(--tx)}
+.loading-steps{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.loading-step{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--t3);transition:color .2s}
+.loading-step.done{color:var(--tx)}
+.ls-dot{width:6px;height:6px;border-radius:50%;background:var(--bd);flex-shrink:0;transition:background .2s}
+.loading-step.done .ls-dot{background:#22c55e}
+.loading-step.active .ls-dot{background:var(--ac);animation:lsdotpulse 1s infinite}
+@keyframes lsdotpulse{0%,100%{opacity:1}50%{opacity:.3}}
+
 /* APP */
 #app{display:none}
 .sb{position:fixed;left:0;top:0;bottom:0;width:220px;background:var(--su);border-right:1px solid var(--bd);display:flex;flex-direction:column;z-index:50}
@@ -375,6 +390,18 @@ tr:hover .comment-btn{opacity:.55}
   </div>
 </div>
 
+<!-- LOADING OVERLAY -->
+<div id="loading-overlay">
+  <div class="loading-box">
+    <div class="loading-spinner"></div>
+    <div class="loading-text" id="loading-text">Loading issues…</div>
+    <div class="loading-steps">
+      <div class="loading-step" id="ls-issues"><span class="ls-dot"></span>Loading issues</div>
+      <div class="loading-step" id="ls-realtime"><span class="ls-dot"></span>Connecting realtime</div>
+    </div>
+  </div>
+</div>
+
 <div id="app">
   <nav class="sb">
     <div class="sbh">
@@ -636,10 +663,25 @@ function startSession(n){
   localStorage.setItem('qa_color',myC);
   localStorage.setItem('qa_username',n);
   cmap[n]=myC;
-  G('lo').style.display='none';G('app').style.display='block';
+  G('lo').style.display='none';
+  G('loading-overlay').classList.add('show');
   G('mav').textContent=ini(n);G('mav').style.background=myC;G('mn').textContent=n;
-  loadLocal();loadTeamsLocal();loadRoundsLocal();renderAll();initSB();
+  loadLocal();loadTeamsLocal();loadRoundsLocal();
+  initSB();
   requestNotifPermission();
+}
+
+function setLoadingStep(stepId,state){
+  const el=G(stepId);
+  if(!el)return;
+  el.classList.remove('done','active');
+  if(state)el.classList.add(state);
+}
+
+function finishLoading(){
+  G('loading-overlay').classList.remove('show');
+  G('app').style.display='block';
+  renderAll();
 }
 
 
@@ -670,15 +712,25 @@ async function qdel(tbl,col,val){
 
 async function initSB(){
   try{
+    setLoadingStep('ls-issues','active');
     await qget('issues','select=id&limit=1');
     setConn(true);
     await loadTeams();
     await loadRounds();
     await loadComments();
     await seedOrLoad();
+    setLoadingStep('ls-issues','done');
+    setLoadingStep('ls-realtime','active');
     startRT();
     startPres();
-  }catch(e){setConn(false);toast('Connection failed: '+e.message,'err')}
+  }catch(e){
+    setConn(false);
+    toast('Connection failed: '+e.message,'err');
+    // fall back to local data and show the app anyway so it's not stuck loading forever
+    setLoadingStep('ls-issues','done');
+    setLoadingStep('ls-realtime','done');
+    finishLoading();
+  }
 }
 
 function setConn(ok){
@@ -698,12 +750,22 @@ let ws=null,wsT=null;
 function startRT(){
   const url=SB.replace('https://','wss://')+'/realtime/v1/websocket?apikey='+KEY+'&vsn=1.0.0';
   ws=new WebSocket(url);
+  // Safety net: if realtime hasn't connected within 8s, show the app anyway
+  const rtTimeout=setTimeout(()=>{
+    if(G('loading-overlay').classList.contains('show')){
+      setLoadingStep('ls-realtime','done');
+      finishLoading();
+    }
+  },8000);
   ws.onopen=()=>{
+    clearTimeout(rtTimeout);
     ws.send(JSON.stringify({topic:'realtime:public:issues',event:'phx_join',payload:{config:{broadcast:{self:false},presence:{key:''},postgres_changes:[{event:'*',schema:'public',table:'issues'}]},access_token:KEY},ref:'1'}));
     ws.send(JSON.stringify({topic:'realtime:public:teams',event:'phx_join',payload:{config:{broadcast:{self:false},presence:{key:''},postgres_changes:[{event:'*',schema:'public',table:'teams'}]},access_token:KEY},ref:'2'}));
     ws.send(JSON.stringify({topic:'realtime:public:comments',event:'phx_join',payload:{config:{broadcast:{self:false},presence:{key:''},postgres_changes:[{event:'*',schema:'public',table:'comments'}]},access_token:KEY},ref:'4'}));
     ws.send(JSON.stringify({topic:'realtime:editing',event:'phx_join',payload:{config:{broadcast:{self:false}},access_token:KEY},ref:'3'}));
     wsT=setInterval(()=>ws.readyState===1&&ws.send(JSON.stringify({topic:'phoenix',event:'heartbeat',payload:{},ref:'hb'})),25000);
+    setLoadingStep('ls-realtime','done');
+    finishLoading();
   };
   ws.onmessage=ev=>{
     try{
