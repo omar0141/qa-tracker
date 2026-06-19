@@ -397,7 +397,7 @@ tbody tr.deleted-row .iname{text-decoration:line-through;color:var(--t3)}
     <div class="sbsp"></div>
     <div class="sbft">
       <div class="mec"><div class="mav" id="mav">?</div><div><div class="mn" id="mn">-</div><div class="mr">QA Engineer</div></div>
-        <button class="me-switch" onclick="switchUser()" title="Switch user">&#x21bb;</button>
+        <button class="me-switch" onclick="logoutUser()" title="Log out">&#x23FB;</button>
       </div>
     </div>
   </nav>
@@ -595,7 +595,9 @@ function go(){
   const n=G('ni').value.trim();if(!n)return;
   startSession(n);
 }
-function switchUser(){
+async function logoutUser(){
+  if(!(await showConfirm('Log out','You will need to enter your name again to come back.','Log out','danger')))return;
+  try{ if(uid) await qdel('presence','id',uid); }catch(e){}
   localStorage.removeItem('qa_username');
   if(ws)ws.close();
   location.reload();
@@ -612,10 +614,19 @@ function startSession(n){
   G('mav').textContent=ini(n);G('mav').style.background=myC;G('mn').textContent=n;
   loadLocal();loadTeamsLocal();loadRoundsLocal();renderAll();initSB();
 }
-// Auto-login if a username was saved previously
+// Auto-login if a username was saved previously (persists across refresh/reload)
 (function(){
-  const saved=localStorage.getItem('qa_username');
-  if(saved)startSession(saved);
+  try{
+    const saved=localStorage.getItem('qa_username');
+    if(saved){
+      console.log('[QA Tracker] Auto-login as', saved);
+      startSession(saved);
+    }else{
+      console.log('[QA Tracker] No saved username, showing login screen');
+    }
+  }catch(e){
+    console.error('[QA Tracker] Auto-login failed:', e);
+  }
 })();
 
 /* SUPABASE via plain fetch - avoids DataCloneError from postMessage in supabase-js */
