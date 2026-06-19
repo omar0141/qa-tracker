@@ -120,11 +120,6 @@ table{width:100%;border-collapse:collapse;table-layout:fixed}
 col.c0{width:40px}col.c1{width:auto}col.c2{width:108px}col.c3{width:128px}col.c4{width:160px}col.c5{width:108px}col.c6{width:88px}
 thead tr{}
 thead th{text-align:left;padding:0 12px;height:36px;font-size:11px;font-weight:500;color:var(--t3);letter-spacing:.02em;cursor:pointer;user-select:none;white-space:nowrap;background:var(--su);position:sticky;top:124px;z-index:30;border-bottom:1px solid var(--bd)}
-.col-resize{position:absolute;right:-8px;top:0;bottom:0;width:18px;cursor:col-resize;z-index:32}
-.col-resize::after{content:'';position:absolute;left:50%;top:6px;bottom:6px;width:3px;margin-left:-1.5px;background:var(--bd2);border-radius:2px;transition:background .12s,top .12s,bottom .12s,width .12s}
-.col-resize:hover::after,.col-resize.resizing::after{background:var(--ac);top:2px;bottom:2px;width:4px;margin-left:-2px}
-body.col-resizing{cursor:col-resize!important;user-select:none!important}
-body.col-resizing *{user-select:none!important}
 thead th:hover{color:var(--t2)}
 thead th.ths{color:var(--tx)}
 .sa{margin-left:3px;opacity:.5}
@@ -491,15 +486,15 @@ tr:hover .comment-btn{opacity:.55}
     </div>
     <div class="tw">
       <table>
-        <colgroup id="col-group"><col class="c0" id="col-0"><col class="c1" id="col-1"><col class="c2" id="col-2"><col class="c3" id="col-3"><col class="c4" id="col-4"><col class="c5" id="col-5"><col class="c6" id="col-6"></colgroup>
+        <colgroup><col class="c0"><col class="c1"><col class="c2"><col class="c3"><col class="c4"><col class="c5"><col class="c6"></colgroup>
         <thead>
           <tr>
-            <th onclick="sb2('idx')">#<span class="col-resize" data-col="0"></span></th>
-            <th onclick="sb2('name')" id="thn">Issue<span class="col-resize" data-col="1"></span></th>
-            <th onclick="sb2('priority')" id="thp">Priority<span class="col-resize" data-col="2"></span></th>
-            <th onclick="sb2('status')" id="ths2">Status<span class="col-resize" data-col="3"></span></th>
-            <th onclick="sb2('type')" id="tht">Type<span class="col-resize" data-col="4"></span></th>
-            <th onclick="sb2('user')" id="thu">Assignee<span class="col-resize" data-col="5"></span></th>
+            <th onclick="sb2('idx')">#</th>
+            <th onclick="sb2('name')" id="thn">Issue</th>
+            <th onclick="sb2('priority')" id="thp">Priority</th>
+            <th onclick="sb2('status')" id="ths2">Status</th>
+            <th onclick="sb2('type')" id="tht">Type</th>
+            <th onclick="sb2('user')" id="thu">Assignee</th>
             <th>Files</th>
           </tr>
         </thead>
@@ -687,7 +682,6 @@ function finishLoading(){
   G('loading-overlay').classList.remove('show');
   G('app').style.display='block';
   renderAll();
-  loadColWidths();
 }
 
 
@@ -1288,85 +1282,7 @@ function st(val,el){
 }
 function sb2(k){if(k==='idx'){sK=null;rt();return}if(sK===k)sD*=-1;else{sK=k;sD=1}rt()}
 
-/* COLUMN RESIZE */
-const COL_MIN_WIDTH=40;
-function loadColWidths(){
-  try{
-    const saved=JSON.parse(localStorage.getItem('qa_col_widths')||'{}');
-    for(const idx in saved){
-      const col=G('col-'+idx);
-      if(col)col.style.width=saved[idx]+'px';
-    }
-  }catch(e){}
-}
-function saveColWidths(){
-  const widths={};
-  for(let i=0;i<=6;i++){
-    const col=G('col-'+i);
-    if(col)widths[i]=col.offsetWidth;
-  }
-  localStorage.setItem('qa_col_widths',JSON.stringify(widths));
-}
-(function initColResize(){
-  let activeHandle=null,startX=0,startWidth=0,activeCol=null;
 
-  function beginResize(handle,clientX){
-    activeHandle=handle;
-    activeCol=G('col-'+handle.dataset.col);
-    if(!activeCol)return;
-    startX=clientX;
-    startWidth=activeCol.offsetWidth;
-    handle.classList.add('resizing');
-    document.body.classList.add('col-resizing');
-  }
-  function moveResize(clientX){
-    if(!activeCol)return;
-    const delta=clientX-startX;
-    const newWidth=Math.max(COL_MIN_WIDTH,startWidth+delta);
-    activeCol.style.width=newWidth+'px';
-  }
-  function endResize(){
-    if(!activeCol)return;
-    if(activeHandle)activeHandle.classList.remove('resizing');
-    document.body.classList.remove('col-resizing');
-    saveColWidths();
-    activeHandle=null;activeCol=null;
-  }
-
-  // Mouse
-  document.addEventListener('mousedown',function(e){
-    const handle=e.target.closest('.col-resize');
-    if(!handle)return;
-    e.preventDefault();
-    e.stopPropagation();
-    beginResize(handle,e.clientX);
-  });
-  document.addEventListener('mousemove',function(e){
-    if(activeCol)moveResize(e.clientX);
-  });
-  document.addEventListener('mouseup',endResize);
-
-  // Touch
-  document.addEventListener('touchstart',function(e){
-    const handle=e.target.closest('.col-resize');
-    if(!handle)return;
-    e.preventDefault();
-    beginResize(handle,e.touches[0].clientX);
-  },{passive:false});
-  document.addEventListener('touchmove',function(e){
-    if(!activeCol)return;
-    e.preventDefault();
-    moveResize(e.touches[0].clientX);
-  },{passive:false});
-  document.addEventListener('touchend',endResize);
-
-  // Prevent sort-click from firing when the user was just dragging
-  document.addEventListener('click',function(e){
-    if(e.target.closest('.col-resize')){
-      e.stopPropagation();
-    }
-  },true);
-})();
 
 /* UPDATE */
 async function upd(id,field,value){
