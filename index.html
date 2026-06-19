@@ -1552,7 +1552,25 @@ function selectRound(roundId,el){
   currentRoundId=roundId||null;
   document.querySelectorAll('.round-si').forEach(b=>b.classList.remove('active'));
   if(el)el.classList.add('active');
-  rt();renderStats();renderCounts();renderRoundSidebar();
+
+  // Clear sidebar view filter (All Issues / High Priority / team member etc.)
+  vF='all';
+  document.querySelectorAll('.si').forEach(b=>b.classList.remove('active'));
+  const allIssuesSi=document.querySelector('.si[onclick*="sv(\'all\'"]')||document.querySelector('.si');
+  if(allIssuesSi)allIssuesSi.classList.add('active');
+  G('tbt').textContent='All Issues';
+
+  // Clear tab filters (Priority/Status/Type column filters)
+  activeFilters.clear();
+  document.querySelectorAll('.ft').forEach(b=>b.classList.remove('active'));
+  const allTab=document.querySelector('.ft');
+  if(allTab)allTab.classList.add('active');
+
+  // Clear search box too, for a fully clean slate on round switch
+  const search=G('srq');
+  if(search)search.value='';
+
+  rt();renderStats();renderCounts();renderRoundSidebar();renderTeamSidebar();
 }
 
 function openAddRound(){
