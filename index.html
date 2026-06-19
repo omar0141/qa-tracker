@@ -51,6 +51,8 @@ hr.ld{border:none;border-top:1px solid var(--bd);margin:28px 0}
 .sbsp{flex:1}
 .sbft{padding:12px;border-top:1px solid var(--bd)}
 .mec{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:var(--r4)}
+.me-switch{margin-left:auto;background:none;border:none;color:var(--t3);font-size:14px;cursor:pointer;padding:4px;border-radius:4px;transition:background .1s,color .1s;flex-shrink:0}
+.me-switch:hover{background:var(--hv);color:var(--tx)}
 .mav{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}
 .mn{font-size:12px;font-weight:500}
 .mr{font-size:11px;color:var(--t3)}
@@ -76,14 +78,14 @@ hr.ld{border:none;border-top:1px solid var(--bd);margin:28px 0}
 .cpdot.err{background:#ef4444}
 
 /* STATS */
-.ss{display:flex;align-items:center;height:36px;border-bottom:1px solid var(--bd);padding:0 20px;background:var(--bg)}
+.ss{display:flex;align-items:center;height:36px;border-bottom:1px solid var(--bd);padding:0 20px;background:var(--bg);position:sticky;top:48px;z-index:39}
 .si2{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t3);padding-right:16px;margin-right:16px;border-right:1px solid var(--bd)}
 .si2:last-child{border-right:none}
 .si2 strong{font-size:13px;font-weight:600;color:var(--tx)}
 .sdot{width:6px;height:6px;border-radius:50%}
 
 /* SUBBAR */
-.sub{height:40px;border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 20px;background:var(--su);overflow-x:auto;gap:0}
+.sub{height:40px;border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 20px;background:var(--su);overflow-x:auto;gap:0;position:sticky;top:84px;z-index:38}
 .sub::-webkit-scrollbar{display:none}
 .ft{display:flex;align-items:center;gap:4px;padding:0 10px;height:40px;font-size:12px;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;transition:color .1s,border-color .15s,background .1s;user-select:none;border-radius:0}
 .ft:hover{color:var(--t2);background:var(--hv)}
@@ -102,7 +104,7 @@ hr.ld{border:none;border-top:1px solid var(--bd);margin:28px 0}
 table{width:100%;border-collapse:collapse;table-layout:fixed}
 col.c0{width:40px}col.c1{width:auto}col.c2{width:108px}col.c3{width:128px}col.c4{width:160px}col.c5{width:108px}col.c6{width:88px}
 thead tr{border-bottom:1px solid var(--bd)}
-thead th{text-align:left;padding:0 12px;height:36px;font-size:11px;font-weight:500;color:var(--t3);letter-spacing:.02em;cursor:pointer;user-select:none;white-space:nowrap;background:var(--su);position:sticky;top:84px;z-index:30;border-bottom:1px solid var(--bd)}
+thead th{text-align:left;padding:0 12px;height:36px;font-size:11px;font-weight:500;color:var(--t3);letter-spacing:.02em;cursor:pointer;user-select:none;white-space:nowrap;background:var(--su);position:sticky;top:124px;z-index:30;border-bottom:1px solid var(--bd)}
 thead th:hover{color:var(--t2)}
 thead th.ths{color:var(--tx)}
 .sa{margin-left:3px;opacity:.5}
@@ -394,7 +396,9 @@ tbody tr.deleted-row .iname{text-decoration:line-through;color:var(--t3)}
     </div>
     <div class="sbsp"></div>
     <div class="sbft">
-      <div class="mec"><div class="mav" id="mav">?</div><div><div class="mn" id="mn">-</div><div class="mr">QA Engineer</div></div></div>
+      <div class="mec"><div class="mav" id="mav">?</div><div><div class="mn" id="mn">-</div><div class="mr">QA Engineer</div></div>
+        <button class="me-switch" onclick="switchUser()" title="Switch user">&#x21bb;</button>
+      </div>
     </div>
   </nav>
 
@@ -589,12 +593,30 @@ function fmtDate(iso){
 G('ni').addEventListener('keydown',e=>{if(e.key==='Enter')go()});
 function go(){
   const n=G('ni').value.trim();if(!n)return;
-  me=n;uid='u_'+Math.random().toString(36).slice(2,9);
-  myC=AVC[Math.floor(Math.random()*AVC.length)];cmap[n]=myC;
+  startSession(n);
+}
+function switchUser(){
+  localStorage.removeItem('qa_username');
+  if(ws)ws.close();
+  location.reload();
+}
+function startSession(n){
+  me=n;
+  uid=localStorage.getItem('qa_uid')||('u_'+Math.random().toString(36).slice(2,9));
+  localStorage.setItem('qa_uid',uid);
+  myC=localStorage.getItem('qa_color')||AVC[Math.floor(Math.random()*AVC.length)];
+  localStorage.setItem('qa_color',myC);
+  localStorage.setItem('qa_username',n);
+  cmap[n]=myC;
   G('lo').style.display='none';G('app').style.display='block';
   G('mav').textContent=ini(n);G('mav').style.background=myC;G('mn').textContent=n;
   loadLocal();loadTeamsLocal();loadRoundsLocal();renderAll();initSB();
 }
+// Auto-login if a username was saved previously
+(function(){
+  const saved=localStorage.getItem('qa_username');
+  if(saved)startSession(saved);
+})();
 
 /* SUPABASE via plain fetch - avoids DataCloneError from postMessage in supabase-js */
 const H=()=>({'Content-Type':'application/json','apikey':KEY,'Authorization':'Bearer '+KEY});
@@ -651,14 +673,21 @@ function startRT(){
   const url=SB.replace('https://','wss://')+'/realtime/v1/websocket?apikey='+KEY+'&vsn=1.0.0';
   ws=new WebSocket(url);
   ws.onopen=()=>{
-    ws.send(JSON.stringify({topic:'realtime:public:issues',event:'phx_join',payload:{config:{broadcast:{self:false},presence:{key:''},postgres_changes:[{event:'*',schema:'public',table:'issues'}]}},ref:'1'}));
-    ws.send(JSON.stringify({topic:'realtime:public:teams',event:'phx_join',payload:{config:{broadcast:{self:false},presence:{key:''},postgres_changes:[{event:'*',schema:'public',table:'teams'}]}},ref:'2'}));
-    ws.send(JSON.stringify({topic:'realtime:editing',event:'phx_join',payload:{config:{broadcast:{self:false}}},ref:'3'}));
+    ws.send(JSON.stringify({topic:'realtime:public:issues',event:'phx_join',payload:{config:{broadcast:{self:false},presence:{key:''},postgres_changes:[{event:'*',schema:'public',table:'issues'}]},access_token:KEY},ref:'1'}));
+    ws.send(JSON.stringify({topic:'realtime:public:teams',event:'phx_join',payload:{config:{broadcast:{self:false},presence:{key:''},postgres_changes:[{event:'*',schema:'public',table:'teams'}]},access_token:KEY},ref:'2'}));
+    ws.send(JSON.stringify({topic:'realtime:editing',event:'phx_join',payload:{config:{broadcast:{self:false}},access_token:KEY},ref:'3'}));
     wsT=setInterval(()=>ws.readyState===1&&ws.send(JSON.stringify({topic:'phoenix',event:'heartbeat',payload:{},ref:'hb'})),25000);
   };
   ws.onmessage=ev=>{
     try{
       const msg=JSON.parse(ev.data);
+
+      if(msg.event==='phx_reply'){
+        if(msg.payload&&msg.payload.status==='error'){
+          console.error('Realtime join failed for',msg.topic,msg.payload.response);
+        }
+        return;
+      }
 
       // Supabase Realtime wraps postgres_changes events like:
       // { topic, event: "postgres_changes", payload: { data: { type: "INSERT"|"UPDATE"|"DELETE", record, old_record, table } } }
