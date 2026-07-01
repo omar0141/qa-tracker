@@ -66,10 +66,10 @@ hr.ld{border:none;border-top:1px solid var(--bd);margin:28px 0}
 .sbsp{flex:1}
 .sbft{padding:10px 12px 12px;border-top:1px solid var(--bd)}
 .sb-user-card{display:flex;align-items:center;gap:10px;padding:6px 4px}
-.mav{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
+.mav{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;background:var(--tx)}
 .sb-user-info{flex:1;min-width:0}
 .sb-user-fullname{font-size:13px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
-.sb-username{font-size:11px;color:var(--ac);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;font-weight:500}
+.sb-username{font-size:11px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;font-weight:400}
 .sb-logout-icon{background:none;border:none;color:var(--t3);cursor:pointer;padding:6px;border-radius:var(--r4);display:flex;align-items:center;justify-content:center;transition:background .1s,color .1s;flex-shrink:0}
 .sb-logout-icon:hover{background:#fef2f2;color:#9f1239}
 .mav{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}
@@ -428,6 +428,8 @@ tr:hover .comment-btn{opacity:.55}
 .admin-chip{padding:5px 12px;border-radius:100px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--bd);background:var(--su);color:var(--t2);transition:all .1s;white-space:nowrap}
 .admin-chip:hover{border-color:var(--bd2);color:var(--tx)}
 .admin-chip.active{background:var(--ac-bg);border-color:#c7d2fe;color:var(--act);font-weight:600}
+.ft-del.active{color:#9f1239;border-bottom-color:#ef4444;font-weight:500}
+.ft-del.active .ftc{background:#fecdd3;color:#9f1239}
 </style>
 </head>
 <body>
@@ -839,8 +841,8 @@ async function go(){
     if(!orgs.length){errEl.textContent='Organization not found.';return;}
     currentOrg=orgs[0];
     const userColor=user.color||AVC[Math.abs((user.name||'').split('').reduce((a,c)=>a+c.charCodeAt(0),0))%AVC.length];
-    localStorage.setItem('qa_session',JSON.stringify({userId:user.id,orgId:user.org_id,name:user.name,color:userColor,orgName:currentOrg.name,orgFolder:currentOrg.cloudinary_folder}));
-    startSession(user.name,user.color||AVC[0]);
+    localStorage.setItem('qa_session',JSON.stringify({userId:user.id,orgId:user.org_id,name:user.name,fullName:user.full_name||'',color:userColor,orgName:currentOrg.name,orgFolder:currentOrg.cloudinary_folder}));
+    startSession(user.full_name||user.name,user.name,user.color||AVC[0]);
   }catch(e){
     errEl.textContent='Login failed: '+e.message;
   }
@@ -856,23 +858,30 @@ async function logoutUser(){
   location.reload();
 }
 
-function startSession(n,color){
-  me=n;
+function startSession(fullName,username,color){
+  // fullName = display name (e.g. "Mohamed"), username = login key (e.g. "mhd")
+  username=username||fullName;
+  me=fullName;
   uid=localStorage.getItem('qa_uid')||('u_'+Math.random().toString(36).slice(2,9));
   localStorage.setItem('qa_uid',uid);
   myC=color||localStorage.getItem('qa_color')||AVC[Math.floor(Math.random()*AVC.length)];
   localStorage.setItem('qa_color',myC);
-  localStorage.setItem('qa_username',n);
-  cmap[n]=myC;
+  localStorage.setItem('qa_username',username);
+  cmap[fullName]=myC;cmap[username]=myC;
   G('lo').style.display='none';
   G('loading-overlay').classList.add('show');
-  G('mav').textContent=ini(n);G('mav').style.background='var(--ac)';G('mn').textContent=n;
-  // Always show @username below full name
-  const usernameEl=G('sb-username');
-  if(usernameEl){
-    const loginName=currentUser&&currentUser.name;
-    usernameEl.textContent=loginName?('@'+loginName):'';
+  // Avatar: initials from full name, black background
+  const avatarEl=G('mav');
+  if(avatarEl){
+    avatarEl.textContent=ini(fullName);
+    avatarEl.style.background='var(--tx)';
   }
+  // Full name with capitalized first char
+  const displayName=fullName?fullName.charAt(0).toUpperCase()+fullName.slice(1):username;
+  G('mn').textContent=displayName;
+  // @username always shown in grey
+  const usernameEl=G('sb-username');
+  if(usernameEl)usernameEl.textContent='@'+username;
   // Update org name in sidebar
   if(currentOrg) {
     const sp=G('sb-project-name');
@@ -894,6 +903,23 @@ function finishLoading(){
   G('loading-overlay').classList.remove('show');
   G('app').style.display='block';
   renderAll();
+  // Refresh footer with latest user data from DB
+  refreshUserFooter();
+}
+async function refreshUserFooter(){
+  if(!currentUser||!currentUser.id)return;
+  try{
+    const data=await qget('users','select=name,full_name,color&id=eq.'+currentUser.id+'&limit=1');
+    if(!data.length)return;
+    const u=data[0];
+    currentUser.full_name=u.full_name||currentUser.full_name||'';
+    const fullName=u.full_name||u.name;
+    const displayName=fullName.charAt(0).toUpperCase()+fullName.slice(1);
+    G('mn').textContent=displayName;
+    const usernameEl=G('sb-username');
+    if(usernameEl)usernameEl.textContent='@'+u.name;
+    me=fullName;
+  }catch(e){}
 }
 
 
@@ -2447,9 +2473,9 @@ async function uploadOne(file){
     if(savedSession){
       const sess=JSON.parse(savedSession);
       currentOrg={id:sess.orgId,name:sess.orgName,cloudinary_folder:sess.orgFolder};
-      currentUser={id:sess.userId,name:sess.name,org_id:sess.orgId};
+      currentUser={id:sess.userId,name:sess.name,full_name:sess.fullName||'',org_id:sess.orgId};
       console.log('[QA Tracker] Auto-login as',sess.name,'in',sess.orgName);
-      startSession(sess.name,sess.color);
+      startSession(sess.fullName||sess.name,sess.name,sess.color);
       return;
     }
     console.log('[QA Tracker] No session, showing login screen');
