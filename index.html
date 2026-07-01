@@ -65,9 +65,13 @@ hr.ld{border:none;border-top:1px solid var(--bd);margin:28px 0}
 .sc{margin-left:auto;font-size:11px;font-weight:500;background:var(--hv);border-radius:100px;padding:1px 6px;color:var(--t2);min-width:20px;text-align:center}
 .sbsp{flex:1}
 .sbft{padding:12px;border-top:1px solid var(--bd)}
-.mec{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:var(--r4)}
-.me-switch{margin-left:auto;background:none;border:none;color:var(--t3);font-size:14px;cursor:pointer;padding:4px;border-radius:4px;transition:background .1s,color .1s;flex-shrink:0}
-.me-switch:hover{background:var(--hv);color:var(--tx)}
+.sb-user-card{display:flex;align-items:center;gap:8px;padding:8px 8px 4px}
+.sb-user-info{flex:1;min-width:0}
+.mn{font-size:12px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-username{font-size:11px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-logout-btn{display:flex;align-items:center;gap:5px;width:100%;margin-top:6px;padding:7px 10px;background:var(--hv);border:1px solid var(--bd);border-radius:var(--r4);font-size:12px;font-weight:500;color:var(--t2);cursor:pointer;font-family:var(--f);transition:background .1s,color .1s,border-color .1s}
+.sb-logout-btn:hover{background:#fef2f2;border-color:#fecaca;color:#9f1239}
+.sb-logout-btn svg{flex-shrink:0}
 .mav{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}
 .mn{font-size:12px;font-weight:500}
 .mr{font-size:11px;color:var(--t3)}
@@ -557,11 +561,18 @@ tr:hover .comment-btn{opacity:.55}
       <div class="sbl" style="padding:0 8px;margin-bottom:4px">Team</div>
       <div id="team-list"></div>
     </div>
-    </div>
     <div class="sbsp"></div>
     <div class="sbft">
-      <div class="mec"><div class="mav" id="mav">?</div><div><div class="mn" id="mn">-</div><div class="mr">QA Engineer</div></div>
-        <button class="me-switch" onclick="logoutUser()" title="Log out">&#x23FB;</button>
+      <div class="sb-user-card">
+        <div class="mav" id="mav">?</div>
+        <div class="sb-user-info">
+          <div class="mn" id="mn">—</div>
+          <div class="sb-username" id="sb-username"></div>
+        </div>
+        <button class="sb-logout-btn" onclick="logoutUser()" title="Sign out">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Sign out
+        </button>
       </div>
     </div>
   </nav>
@@ -827,6 +838,12 @@ function startSession(n,color){
   G('lo').style.display='none';
   G('loading-overlay').classList.add('show');
   G('mav').textContent=ini(n);G('mav').style.background=myC;G('mn').textContent=n;
+  // Show username (@login) below full name if different
+  const usernameEl=G('sb-username');
+  if(usernameEl){
+    const loginName=currentUser&&currentUser.name;
+    usernameEl.textContent=loginName&&loginName.toLowerCase()!==n.toLowerCase()?('@'+loginName):'';
+  }
   // Update org name in sidebar
   if(currentOrg) {
     const sp=G('sb-project-name');
