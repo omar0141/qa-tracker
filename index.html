@@ -627,7 +627,7 @@ tr:hover .comment-btn{opacity:.55}
       <div class="ft" onclick="st('Done',this)" data-val="Done">Done <span class="ftc" id="fd">0</span></div>
       <div class="ft" onclick="st('Need to discuss',this)" data-val="Need to discuss">To Discuss <span class="ftc" id="fq">0</span></div>
       <div class="sep"></div>
-      <div class="ft ft-del" onclick="sv('Deleted',document.querySelector('.si[data-view=Deleted]'))"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg> Deleted <span class="ftc" id="fx">0</span></div>
+      <div class="ft ft-del" data-val="Deleted" onclick="st('Deleted',this)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg> Deleted <span class="ftc" id="fx">0</span></div>
       <div class="sep"></div>
       <div class="ft" onclick="st('Client',this)" data-val="Client">Client <span class="ftc" id="fc">0</span></div>
       <div class="ft" onclick="st('Partner',this)" data-val="Partner">Partner <span class="ftc" id="fp">0</span></div>
@@ -1478,8 +1478,14 @@ function sv(val,el){
   // Sync top tab bar to match sidebar selection
   activeFilters.clear();
   document.querySelectorAll('.ft').forEach(b=>b.classList.remove('active'));
-  const TAB_VALS=['High','Medium','Low','Not Started','In Progress','Done','Need to discuss','Client','Partner','CPanel'];
-  if(val==='all'||val==='Deleted'||!TAB_VALS.includes(val)){
+  const TAB_VALS=['High','Medium','Low','Not Started','In Progress','Done','Need to discuss','Client','Partner','CPanel','Deleted'];
+  if(val==='Deleted'){
+    // Highlight the Deleted tab
+    activeFilters.clear();
+    document.querySelectorAll('.ft').forEach(b=>b.classList.remove('active'));
+    const delTab=document.querySelector('.ft[data-val="Deleted"]');
+    if(delTab)delTab.classList.add('active');
+  }else if(val==='all'||!TAB_VALS.includes(val)){
     const allTab=document.querySelector('.ft');
     if(allTab)allTab.classList.add('active');
   }else{
@@ -1496,6 +1502,7 @@ const FILTER_GROUPS = {
   priority: ['High','Medium','Low'],
   status:   ['Not Started','In Progress','Done','Need to discuss'],
   type:     ['Client','Partner','CPanel'],
+  deleted:  ['Deleted'],
 };
 function filterGroupOf(val){
   for(const g in FILTER_GROUPS) if(FILTER_GROUPS[g].includes(val)) return g;
@@ -1513,6 +1520,32 @@ function st(val,el){
     const allSi=document.querySelector('.si[onclick*="sv(\'all\'"]');
     if(allSi)allSi.classList.add('active');
     G('tbt').textContent='All Issues';
+  }else if(val==='Deleted'){
+    // Deleted is a vF-level view, not a column filter — toggle it
+    if(vF==='Deleted'){
+      // Un-select: go back to All
+      vF='all';el.classList.remove('active');
+      document.querySelectorAll('.si').forEach(b=>b.classList.remove('active'));
+      const allSi=document.querySelector('.si');if(allSi)allSi.classList.add('active');
+      G('tbt').textContent='All Issues';
+      // Also clear any stale activeFilters and reset All tab
+      activeFilters.clear();
+      document.querySelectorAll('.ft').forEach(b=>b.classList.remove('active'));
+      document.querySelector('.ft').classList.add('active');
+    }else{
+      vF='Deleted';el.classList.add('active');
+      // Deactivate all other ft tabs
+      document.querySelectorAll('.ft').forEach(b=>b.classList.remove('active'));
+      el.classList.add('active');
+      activeFilters.clear();
+      // Sync sidebar to Deleted
+      document.querySelectorAll('.si').forEach(b=>b.classList.remove('active'));
+      const delSi=document.querySelector('.si[data-view="Deleted"]');
+      if(delSi)delSi.classList.add('active');
+      G('tbt').textContent='Deleted Issues';
+    }
+    rt();renderCounts();renderTeamSidebar();
+    return;
   }else{
     document.querySelector('.ft').classList.remove('active');
     if(activeFilters.has(val)){
@@ -1541,7 +1574,7 @@ function st(val,el){
     }
   }
   // Sync sidebar: if exactly one filter active and it maps to a sidebar item, highlight it
-  const SIDEBAR_MAP={High:'High',Medium:null,Low:null,'Not Started':'Not Started','In Progress':'In Progress',Done:'Done','Need to discuss':null,Client:null,Partner:null,CPanel:null};
+  const SIDEBAR_MAP={High:'High',Medium:null,Low:null,'Not Started':'Not Started','In Progress':'In Progress',Done:'Done','Need to discuss':null,Client:null,Partner:null,CPanel:null,Deleted:'Deleted'};
   if(activeFilters.size===1){
     const activeVal=[...activeFilters][0];
     const sidebarVal=SIDEBAR_MAP[activeVal];
