@@ -1469,12 +1469,28 @@ document.addEventListener('keydown',function(e){
 
 /* FILTERS */
 function sv(val,el){
-  vF=val;document.querySelectorAll('.si').forEach(b=>b.classList.remove('active'));el.classList.add('active');
+  vF=val;
+  document.querySelectorAll('.si').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
   const L={all:'All Issues',High:'High Priority','In Progress':'In Progress','Not Started':'Not Started',Done:'Done',Deleted:'Deleted Issues'};
-  teams.forEach(t=>{L[t.name]=t.name});
+  teams.forEach(t=>{L[t.name]=t.name;});
   G('tbt').textContent=L[val]||val;
+  // Sync top tab bar to match sidebar selection
+  activeFilters.clear();
+  document.querySelectorAll('.ft').forEach(b=>b.classList.remove('active'));
+  const TAB_VALS=['High','Medium','Low','Not Started','In Progress','Done','Need to discuss','Client','Partner','CPanel'];
+  if(val==='all'||val==='Deleted'||!TAB_VALS.includes(val)){
+    const allTab=document.querySelector('.ft');
+    if(allTab)allTab.classList.add('active');
+  }else{
+    activeFilters.add(val);
+    document.querySelectorAll('.ft[data-val]').forEach(function(b){
+      if(b.dataset.val===val)b.classList.add('active');
+    });
+  }
   rt();renderStats();renderCounts();renderTeamSidebar();
 }
+
 // Filter column groups - selecting within a group deselects others in same group
 const FILTER_GROUPS = {
   priority: ['High','Medium','Low'],
@@ -1489,8 +1505,14 @@ function filterGroupOf(val){
 function st(val,el){
   if(val==='all'){
     activeFilters.clear();
+    vF='all';
     document.querySelectorAll('.ft').forEach(b=>b.classList.remove('active'));
     document.querySelector('.ft').classList.add('active');
+    // Sync sidebar to All Issues
+    document.querySelectorAll('.si').forEach(b=>b.classList.remove('active'));
+    const allSi=document.querySelector('.si[onclick*="sv(\'all\'"]');
+    if(allSi)allSi.classList.add('active');
+    G('tbt').textContent='All Issues';
   }else{
     document.querySelector('.ft').classList.remove('active');
     if(activeFilters.has(val)){
@@ -1517,6 +1539,29 @@ function st(val,el){
     if(activeFilters.size===0){
       document.querySelector('.ft').classList.add('active');
     }
+  }
+  // Sync sidebar: if exactly one filter active and it maps to a sidebar item, highlight it
+  const SIDEBAR_MAP={High:'High',Medium:null,Low:null,'Not Started':'Not Started','In Progress':'In Progress',Done:'Done','Need to discuss':null,Client:null,Partner:null,CPanel:null};
+  if(activeFilters.size===1){
+    const activeVal=[...activeFilters][0];
+    const sidebarVal=SIDEBAR_MAP[activeVal];
+    if(sidebarVal){
+      document.querySelectorAll('.si').forEach(b=>b.classList.remove('active'));
+      const match=document.querySelector('.si[onclick*="sv(\''+sidebarVal+'\'"');
+      if(match){match.classList.add('active');vF=sidebarVal;G('tbt').textContent=sidebarVal==='High'?'High Priority':sidebarVal;}
+      else{const allSi=document.querySelector('.si');if(allSi)allSi.classList.add('active');vF='all';G('tbt').textContent='All Issues';}
+    }else{
+      // No direct sidebar equivalent — reset sidebar to All
+      document.querySelectorAll('.si').forEach(b=>b.classList.remove('active'));
+      const allSi=document.querySelector('.si');if(allSi)allSi.classList.add('active');vF='all';G('tbt').textContent='All Issues';
+    }
+  }else if(activeFilters.size===0){
+    document.querySelectorAll('.si').forEach(b=>b.classList.remove('active'));
+    const allSi=document.querySelector('.si');if(allSi)allSi.classList.add('active');vF='all';G('tbt').textContent='All Issues';
+  }else{
+    // Multiple filters — no single sidebar match, keep sidebar on All
+    document.querySelectorAll('.si').forEach(b=>b.classList.remove('active'));
+    const allSi=document.querySelector('.si');if(allSi)allSi.classList.add('active');vF='all';G('tbt').textContent='All Issues';
   }
   rt();renderCounts();
 }
