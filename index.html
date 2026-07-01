@@ -412,9 +412,22 @@ tr:hover .comment-btn{opacity:.55}
 .aur-badge.inactive{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
 .aur-badge.role{background:var(--ac-bg);color:var(--act);border:1px solid #c7d2fe}
 .aur-actions{display:flex;gap:6px}
-.org-danger-zone{margin-top:16px;padding:14px 16px;border:1px solid #fecaca;border-radius:var(--r6);background:#fff1f2}
-.org-dz-title{font-size:11px;font-weight:600;color:#9f1239;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px}
-.org-dz-actions{display:flex;gap:8px;flex-wrap:wrap}
+.toggle-row{display:flex;align-items:center;gap:10px;padding:4px 0}
+.toggle-label-off{font-size:12px;color:var(--t3)}
+.toggle-label-on{font-size:12px;color:var(--t2)}
+.toggle-switch{position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0}
+.toggle-switch input{opacity:0;width:0;height:0;position:absolute}
+.toggle-thumb{position:absolute;inset:0;background:#d1d5db;border-radius:100px;cursor:pointer;transition:background .2s}
+.toggle-thumb::before{content:"";position:absolute;width:14px;height:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:transform .2s;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.toggle-switch input:checked + .toggle-thumb{background:#22c55e}
+.toggle-switch input:checked + .toggle-thumb::before{transform:translateX(16px)}
+.mf select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23a1a1aa' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:30px!important}
+.admin-select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23a1a1aa' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px!important}
+.admin-filter-label{font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.admin-chips{display:flex;flex-wrap:wrap;gap:6px}
+.admin-chip{padding:5px 12px;border-radius:100px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--bd);background:var(--su);color:var(--t2);transition:all .1s;white-space:nowrap}
+.admin-chip:hover{border-color:var(--bd2);color:var(--tx)}
+.admin-chip.active{background:var(--ac-bg);border-color:#c7d2fe;color:var(--act);font-weight:600}
 </style>
 </head>
 <body>
@@ -456,13 +469,26 @@ tr:hover .comment-btn{opacity:.55}
 
     <!-- Users tab -->
     <div id="admin-tab-users" class="admin-tab-content" style="display:none">
-      <div class="admin-actions" style="display:flex;gap:10px;align-items:center">
-        <select id="admin-user-org-filter" class="admin-select" onchange="loadAllUsers()">
-          <option value="">All Organizations</option>
-        </select>
-        <button class="btn bs admin-new-btn" onclick="openNewUserModal()">+ New User</button>
+      <div class="admin-actions" style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap">
+        <div style="flex:1;min-width:0">
+          <div class="admin-filter-label">Organization</div>
+          <div class="admin-chips" id="admin-org-chips">
+            <div class="admin-chip active" data-org-id="" onclick="setAdminOrgFilter('',this)">All</div>
+          </div>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div class="admin-filter-label">Role</div>
+          <div class="admin-chips" id="admin-role-chips">
+            <div class="admin-chip active" data-role="" onclick="setAdminRoleFilter('',this)">All</div>
+            <div class="admin-chip" data-role="member" onclick="setAdminRoleFilter('member',this)">Member</div>
+            <div class="admin-chip" data-role="admin" onclick="setAdminRoleFilter('admin',this)">Admin</div>
+          </div>
+        </div>
+        <div style="align-self:flex-end">
+          <button class="btn bs admin-new-btn" onclick="openNewUserModal()">+ New User</button>
+        </div>
       </div>
-      <div id="admin-user-list" class="admin-user-table"></div>
+      <div id="admin-user-list" class="admin-user-table" style="margin-top:16px"></div>
     </div>
   </div>
 </div>
@@ -479,9 +505,16 @@ tr:hover .comment-btn{opacity:.55}
       <div class="mf"><label>Role</label>
         <select id="uem-role"><option value="member">Member</option><option value="admin">Admin</option></select>
       </div>
-      <div class="mf" style="display:flex;align-items:center;gap:10px">
-        <label style="margin-bottom:0">Active</label>
-        <input type="checkbox" id="uem-active" style="width:auto">
+      <div class="mf">
+        <label>Account Status</label>
+        <div class="toggle-row">
+          <span class="toggle-label-off">Inactive</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="uem-active">
+            <span class="toggle-thumb"></span>
+          </label>
+          <span class="toggle-label-on">Active</span>
+        </div>
       </div>
     </div>
     <div class="mft">
@@ -1952,6 +1985,9 @@ function switchAdminTab(tab,el){
 }
 
 function startAdminSession(){
+  G('app').style.display='none';
+  G('lo').style.display='none';
+  G('loading-overlay').classList.remove('show');
   G('admin-panel').style.display='block';
   loadOrgs();
 }
@@ -1970,159 +2006,32 @@ async function loadOrgs(){
     orgList.innerHTML='<div style="color:var(--t3);font-size:13px;padding:20px 0">No organizations yet.</div>';
     return;
   }
-  // Also populate org filter dropdown in users tab
-  const filterSel=G('admin-user-org-filter');
-  if(filterSel){
-    filterSel.innerHTML='<option value="">All Organizations</option>'+
-      allOrgsCache.map(o=>`<option value="${o.id}">${esc(o.name)}</option>`).join('');
+  // Populate org filter chips in users tab
+  const chipsEl=G('admin-org-chips');
+  if(chipsEl){
+    const existingChips=chipsEl.querySelectorAll('.admin-chip:not([data-org-id=""])');
+    existingChips.forEach(c=>c.remove());
+    allOrgsCache.forEach(o=>{
+      const chip=document.createElement('div');
+      chip.className='admin-chip';
+      chip.dataset.orgId=o.id;
+      chip.textContent=o.name;
+      chip.onclick=()=>setAdminOrgFilter(o.id,chip);
+      chipsEl.appendChild(chip);
+    });
   }
   orgList.innerHTML=allOrgsCache.map(o=>`
     <div class="org-card">
       <div class="org-card-info">
         <div class="org-card-name">${esc(o.name)}</div>
-        <div class="org-card-meta">Cloudinary folder: ${esc(o.cloudinary_folder||'—')}</div>
+        <div class="org-card-meta">Cloudinary: ${esc(o.cloudinary_folder||'—')}</div>
       </div>
       <div class="org-card-actions">
         <button class="btn bg2" onclick="openOrgModal('${o.id}')">Edit</button>
-        <button class="btn" style="background:#fff1f2;color:#9f1239;border-color:#fecdd3" onclick="deleteOrg('${o.id}','${esc(o.name)}')">Delete</button>
+        <button class="btn" style="background:#fff7ed;color:#92400e;border-color:#fed7aa;font-size:12px" onclick="resetOrgData('${o.id}','${esc(o.name)}')">Reset data</button>
+        <button class="btn" style="background:#fff1f2;color:#9f1239;border-color:#fecdd3;font-size:12px" onclick="deleteOrg('${o.id}','${esc(o.name)}')">Delete</button>
       </div>
-    </div>
-    <div class="org-danger-zone">
-      <div class="org-dz-title">Danger Zone — ${esc(o.name)}</div>
-      <div class="org-dz-actions">
-        <button class="btn" style="background:#fff1f2;color:#9f1239;border-color:#fecdd3;font-size:12px" onclick="resetOrgData('${o.id}','${esc(o.name)}')">&#x26A0; Reset all data</button>
-        <button class="btn bg2" style="font-size:12px" onclick="backupOrg('${o.id}','${esc(o.name)}')">&#x2913; Download backup</button>
-      </div>
-    </div>`).join('<hr style="border:none;border-top:1px solid var(--bd);margin:16px 0">');
-}
-
-// ── Org CRUD ──────────────────────────────────────────────────────────────────
-function openOrgModal(orgId){
-  editingOrgId=orgId||null;
-  draftOrgUsers=[];
-  G('org-modal-title').textContent=orgId?'Edit Organization':'New Organization';
-  G('org-name').value='';G('org-cl-folder').value='';G('new-ou-name').value='';G('new-ou-pass').value='';
-  if(orgId){
-    qget('organizations','select=*&id=eq.'+orgId+'&limit=1').then(data=>{
-      if(data[0]){G('org-name').value=data[0].name;G('org-cl-folder').value=data[0].cloudinary_folder||'';}
-    });
-    qget('users','select=id,name,role,is_active&org_id=eq.'+orgId+'&order=name').then(data=>{
-      draftOrgUsers=data.map(u=>({...u,password_hash:null}));
-      renderOrgUsers();
-    });
-  }else{renderOrgUsers();}
-  G('org-modal').style.display='flex';
-  setTimeout(()=>G('org-name').focus(),50);
-}
-function closeOrgModal(){G('org-modal').style.display='none';}
-
-function renderOrgUsers(){
-  const list=G('org-user-list');
-  if(!draftOrgUsers.length){list.innerHTML='<div style="font-size:12px;color:var(--t3);padding:4px 0">No members yet.</div>';return;}
-  list.innerHTML=draftOrgUsers.map((u,i)=>`
-    <div class="org-user-row">
-      <span class="org-user-name">${esc(u.name)}</span>
-      <span style="color:var(--t3);font-size:11px">${u.id?'existing':'new'}</span>
-      ${u.id?`<span style="font-size:10px;padding:2px 6px;border-radius:3px;background:${u.is_active!==false?'#f0fdf4':'#fef2f2'};color:${u.is_active!==false?'#14532d':'#991b1b'}">${u.is_active!==false?'Active':'Inactive'}</span>`:''}
-      <button class="org-user-rm" onclick="removeOrgUser(${i})">&#x2715;</button>
     </div>`).join('');
-}
-function removeOrgUser(idx){draftOrgUsers.splice(idx,1);renderOrgUsers();}
-
-async function addOrgUser(){
-  const name=G('new-ou-name').value.trim();
-  const pass=G('new-ou-pass').value;
-  if(!name||!pass){toast('Enter name and password','warn');return;}
-  if(draftOrgUsers.find(u=>u.name.toLowerCase()===name.toLowerCase())){toast('User already added','warn');return;}
-  const hash=await sha256(pass);
-  const fullNm=G('new-ou-fullname')&&G('new-ou-fullname').value.trim();
-  draftOrgUsers.push({name:name.toLowerCase(),full_name:fullNm||null,password_hash:hash,role:'member',is_active:true});
-  G('new-ou-name').value='';G('new-ou-pass').value='';if(G('new-ou-fullname'))G('new-ou-fullname').value='';
-  renderOrgUsers();toast(name+' added');
-}
-
-async function saveOrg(){
-  const name=G('org-name').value.trim();
-  const folder=(G('org-cl-folder').value.trim()||name).replace(/[^a-zA-Z0-9_-]/g,'_');
-  if(!name){toast('Organization name required','warn');return;}
-  let orgId=editingOrgId;
-  if(orgId){
-    await qpatch('organizations',orgId,{name,cloudinary_folder:folder});
-  }else{
-    const ins=await qpost('organizations',[{name,cloudinary_folder:folder}]);
-    orgId=ins[0].id;
-  }
-  const newUsers=draftOrgUsers.filter(u=>!u.id&&u.password_hash);
-  for(const u of newUsers){
-    await qpost('users',[{name:u.name,full_name:u.full_name||null,password_hash:u.password_hash,role:'member',org_id:orgId,is_active:true}]);
-  }
-  toast('Organization saved');closeOrgModal();loadOrgs();
-}
-
-async function deleteOrg(orgId,orgName){
-  if(!(await showConfirm('Delete organization','This permanently deletes "'+orgName+'" and ALL its data (issues, teams, rounds, comments). Consider downloading a backup first. This cannot be undone.','Delete forever','danger')))return;
-  toast('Deleting...','warn');
-  // Delete in dependency order
-  for(const tbl of['comments','presence','issues','rounds','teams','users']){
-    await fetch(SB+'/rest/v1/'+tbl+'?org_id=eq.'+orgId,{method:'DELETE',headers:H()});
-  }
-  await fetch(SB+'/rest/v1/organizations?id=eq.'+orgId,{method:'DELETE',headers:H()});
-  toast('Organization deleted');loadOrgs();
-}
-
-async function resetOrgData(orgId,orgName){
-  if(!(await showConfirm('Reset organization data','This clears ALL issues, comments, rounds and teams for "'+orgName+'". Users and the organization itself are kept. Download a backup first!','Reset data','danger')))return;
-  toast('Backing up then resetting...','warn');
-  await backupOrg(orgId,orgName,true);
-  for(const tbl of['comments','issues','rounds','teams']){
-    await fetch(SB+'/rest/v1/'+tbl+'?org_id=eq.'+orgId,{method:'DELETE',headers:H()});
-  }
-  toast('Organization data reset. Backup downloaded.');loadOrgs();
-}
-
-async function backupOrg(orgId,orgName,silent){
-  const data={};
-  for(const tbl of['issues','teams','rounds','comments','users']){
-    try{data[tbl]=await qget(tbl,'select=*&org_id=eq.'+orgId+'&order=created_at');}catch(e){data[tbl]=[];}
-  }
-  const org=allOrgsCache.find(o=>o.id===orgId)||{name:orgName};
-  data.organization=org;
-  data.backup_date=new Date().toISOString();
-  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download=orgName.replace(/\s+/g,'_')+'_backup_'+new Date().toISOString().slice(0,10)+'.json';
-  a.click();
-  if(!silent)toast('Backup downloaded');
-}
-
-// ── User management ───────────────────────────────────────────────────────────
-async function loadAllUsers(){
-  const orgFilter=G('admin-user-org-filter')&&G('admin-user-org-filter').value;
-  const qs='select=*,organizations(name)&order=full_name.nullslast,name'+(orgFilter?'&org_id=eq.'+orgFilter:'');
-  let users=[];
-  try{users=await qget('users',qs);}catch(e){users=await qget('users','select=*&order=name');}
-  const list=G('admin-user-list');
-  if(!users.length){list.innerHTML='<div style="color:var(--t3);font-size:13px;padding:20px 0">No users found.</div>';return;}
-  list.innerHTML=users.map(u=>{
-    const orgName=u.organizations?.name||allOrgsCache.find(o=>o.id===u.org_id)?.name||'—';
-    const color=AVC[Math.abs(u.name.split('').reduce((a,c)=>a+c.charCodeAt(0),0))%AVC.length];
-    return`<div class="admin-user-row">
-      <div class="aur-av" style="background:${color}">${ini(u.name)}</div>
-      <div class="aur-info">
-        <div class="aur-name">${esc(u.full_name||u.name)}</div>
-        <div class="aur-meta" style="font-size:10px;color:var(--t3);font-weight:400;margin-top:0">@${esc(u.name)}</div>
-        <div class="aur-meta">${esc(orgName)} &middot;
-          <span class="aur-badge role">${esc(u.role||'member')}</span>
-          <span class="aur-badge ${u.is_active!==false?'active':'inactive'}">${u.is_active!==false?'Active':'Inactive'}</span>
-        </div>
-      </div>
-      <div class="aur-actions">
-        <button class="btn bg2" style="font-size:12px" onclick="openUserEdit('${u.id}','${esc(u.name)}','${u.org_id||''}','${u.role||'member'}',${u.is_active!==false},'${esc(u.full_name||'')}')">Edit</button>
-        <button class="btn" style="background:#fff1f2;color:#9f1239;border-color:#fecdd3;font-size:12px" onclick="deleteUser('${u.id}','${esc(u.name)}')">Delete</button>
-      </div>
-    </div>`;
-  }).join('');
 }
 
 function openNewUserModal(){
