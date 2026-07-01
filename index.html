@@ -2083,6 +2083,159 @@ async function deleteUser(userId,userName){
   toast('User deleted');loadAllUsers();
 }
 
+let adminOrgFilter='';
+let adminRoleFilter='';
+
+function setAdminOrgFilter(orgId,el){
+  adminOrgFilter=orgId;
+  document.querySelectorAll('#admin-org-chips .admin-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  loadAllUsers();
+}
+function setAdminRoleFilter(role,el){
+  adminRoleFilter=role;
+  document.querySelectorAll('#admin-role-chips .admin-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  loadAllUsers();
+}
+
+async function loadAllUsers(){
+  let qs='select=*,organizations(name)&order=full_name.nullslast,name';
+  if(adminOrgFilter)qs+='&org_id=eq.'+adminOrgFilter;
+  if(adminRoleFilter)qs+='&role=eq.'+adminRoleFilter;
+  let users=[];
+  try{users=await qget('users',qs);}catch(e){try{users=await qget('users','select=*&order=name');}catch(e2){}}
+  const list=G('admin-user-list');
+  if(!list)return;
+  if(!users.length){list.innerHTML='<div style="color:var(--t3);font-size:13px;padding:20px 0">No users found.</div>';return;}
+  list.innerHTML=users.map(u=>{
+    const orgName=(u.organizations&&u.organizations.name)||allOrgsCache.find(o=>o.id===u.org_id)&&allOrgsCache.find(o=>o.id===u.org_id).name||'—';
+    const color=AVC[Math.abs((u.name||'').split('').reduce((a,c)=>a+c.charCodeAt(0),0))%AVC.length];
+    return '<div class="admin-user-row">'
+      +'<div class="aur-av" style="background:'+color+'">'+ini(u.full_name||u.name)+'</div>'
+      +'<div class="aur-info">'
+        +'<div class="aur-name">'+esc(u.full_name||u.name)+'</div>'
+        +'<div class="aur-meta" style="font-size:10px;color:var(--t3);margin-top:0">@'+esc(u.name)+'</div>'
+        +'<div class="aur-meta">'+esc(orgName)+' &middot; '
+          +'<span class="aur-badge role">'+esc(u.role||'member')+'</span>'
+          +'<span class="aur-badge '+(u.is_active!==false?'active':'inactive')+'">'+(u.is_active!==false?'Active':'Inactive')+'</span>'
+        +'</div>'
+      +'</div>'
+      +'<div class="aur-actions">'
+        +'<button class="btn bg2" style="font-size:12px" onclick="openUserEdit(\''+u.id+'\',\''+esc(u.name)+'\',\''+(u.org_id||'')+'\',\''+(u.role||'member')+'\','+(u.is_active!==false)+',\''+esc(u.full_name||'')+'\')">Edit</button>'
+        +'<button class="btn" style="background:#fff1f2;color:#9f1239;border-color:#fecdd3;font-size:12px" onclick="deleteUser(\''+u.id+'\',\''+esc(u.full_name||u.name)+'\')">Delete</button>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+}
+
+function openOrgModal(orgId){
+  editingOrgId=orgId||null;
+  draftOrgUsers=[];
+  G('org-modal-title').textContent=orgId?'Edit Organization':'New Organization';
+  G('org-name').value='';G('org-cl-folder').value='';
+  if(G('new-ou-name'))G('new-ou-name').value='';
+  if(G('new-ou-pass'))G('new-ou-pass').value='';
+  if(G('new-ou-fullname'))G('new-ou-fullname').value='';
+  if(orgId){
+    qget('organizations','select=*&id=eq.'+orgId+'&limit=1').then(function(data){
+      if(data[0]){G('org-name').value=data[0].name;G('org-cl-folder').value=data[0].cloudinary_folder||'';}
+    });
+    qget('users','select=id,name,full_name,role,is_active&org_id=eq.'+orgId+'&order=full_name.nullslast,name').then(function(data){
+      draftOrgUsers=data.map(function(u){return Object.assign({},u,{password_hash:null});});
+      renderOrgUsers();
+    });
+  }else{renderOrgUsers();}
+  G('org-modal').style.display='flex';
+  setTimeout(function(){G('org-name').focus();},50);
+}
+function closeOrgModal(){G('org-modal').style.display='none';}
+
+function renderOrgUsers(){
+  const list=G('org-user-list');
+  if(!list)return;
+  if(!draftOrgUsers.length){list.innerHTML='<div style="font-size:12px;color:var(--t3);padding:4px 0">No members yet.</div>';return;}
+  list.innerHTML=draftOrgUsers.map(function(u,idx){
+    return '<div class="org-user-row">'
+      +'<span class="org-user-name">'+esc(u.full_name||u.name)+'</span>'
+      +'<span style="color:var(--t3);font-size:11px">@'+esc(u.name)+'</span>'
+      +(u.id?'<span class="aur-badge '+(u.is_active!==false?'active':'inactive')+'" style="font-size:10px">'+(u.is_active!==false?'Active':'Inactive')+'</span>':'<span style="font-size:10px;color:var(--ac)">new</span>')
+      +'<button class="org-user-rm" onclick="removeOrgUser('+idx+')">&#x2715;</button>'
+      +'</div>';
+  }).join('');
+}
+function removeOrgUser(idx){draftOrgUsers.splice(idx,1);renderOrgUsers();}
+
+async function addOrgUser(){
+  const name=(G('new-ou-name')&&G('new-ou-name').value||'').trim().toLowerCase();
+  const pass=G('new-ou-pass')&&G('new-ou-pass').value||'';
+  const fullNm=(G('new-ou-fullname')&&G('new-ou-fullname').value||'').trim();
+  if(!name||!pass){toast('Enter username and password','warn');return;}
+  if(draftOrgUsers.find(function(u){return u.name.toLowerCase()===name;})){toast('User already added','warn');return;}
+  const hash=await sha256(pass);
+  draftOrgUsers.push({name:name,full_name:fullNm||null,password_hash:hash,role:'member',is_active:true});
+  if(G('new-ou-name'))G('new-ou-name').value='';
+  if(G('new-ou-pass'))G('new-ou-pass').value='';
+  if(G('new-ou-fullname'))G('new-ou-fullname').value='';
+  renderOrgUsers();toast(name+' added');
+}
+
+async function saveOrg(){
+  const name=G('org-name').value.trim();
+  const folder=(G('org-cl-folder').value.trim()||name).replace(/[^a-zA-Z0-9_-]/g,'_');
+  if(!name){toast('Organization name required','warn');return;}
+  let orgId=editingOrgId;
+  if(orgId){
+    await qpatch('organizations',orgId,{name:name,cloudinary_folder:folder});
+  }else{
+    const ins=await qpost('organizations',[{name:name,cloudinary_folder:folder}]);
+    orgId=ins[0].id;
+  }
+  const newUsers=draftOrgUsers.filter(function(u){return !u.id&&u.password_hash;});
+  for(let i=0;i<newUsers.length;i++){
+    const u=newUsers[i];
+    await qpost('users',[{name:u.name,full_name:u.full_name||null,password_hash:u.password_hash,role:'member',org_id:orgId,is_active:true}]);
+  }
+  toast('Organization saved');closeOrgModal();loadOrgs();
+}
+
+async function deleteOrg(orgId,orgName){
+  if(!(await showConfirm('Delete organization','This permanently deletes "'+orgName+'" and ALL its data. This cannot be undone.','Delete forever','danger')))return;
+  toast('Deleting...','warn');
+  const tables=['comments','presence','issues','rounds','teams','users'];
+  for(let i=0;i<tables.length;i++){
+    await fetch(SB+'/rest/v1/'+tables[i]+'?org_id=eq.'+orgId,{method:'DELETE',headers:H()});
+  }
+  await fetch(SB+'/rest/v1/organizations?id=eq.'+orgId,{method:'DELETE',headers:H()});
+  toast('Organization deleted');loadOrgs();
+}
+
+async function backupOrg(orgId,orgName){
+  const data={};
+  const tables=['issues','teams','rounds','comments','users'];
+  for(let i=0;i<tables.length;i++){
+    try{data[tables[i]]=await qget(tables[i],'select=*&org_id=eq.'+orgId+'&order=created_at');}catch(e){data[tables[i]]=[];}
+  }
+  data.organization=allOrgsCache.find(function(o){return o.id===orgId;})||{name:orgName};
+  data.backup_date=new Date().toISOString();
+  try{
+    await qpost('backups',[{org_id:orgId,org_name:orgName,data:JSON.stringify(data),created_at:new Date().toISOString()}]);
+    toast('Backup saved to database');
+  }catch(e){toast('Backup failed: '+e.message,'err');}
+  return data;
+}
+
+async function resetOrgData(orgId,orgName){
+  if(!(await showConfirm('Reset data for "'+orgName+'"','All issues, comments, rounds and teams will be deleted. A backup is saved to the database first. Users and the organization are kept.','Reset data','danger')))return;
+  toast('Saving backup...','warn');
+  await backupOrg(orgId,orgName);
+  const tables=['comments','issues','rounds','teams'];
+  for(let i=0;i<tables.length;i++){
+    await fetch(SB+'/rest/v1/'+tables[i]+'?org_id=eq.'+orgId,{method:'DELETE',headers:H()});
+  }
+  toast('Data reset. Backup saved.');loadOrgs();
+}
+
 /* CLOUDINARY UPLOAD */
 const CL_CLOUD  = 'dahl3grgy';
 const CL_FOLDER = 'YallaFix QA'; // default, overridden at runtime by getOrgFolder()
