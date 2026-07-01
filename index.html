@@ -374,6 +374,23 @@ tr:hover .comment-btn{opacity:.55}
 .comment-input-row textarea:focus{border-color:var(--ac)}
 .comment-send{background:var(--tx);color:#fff;border:none;border-radius:var(--r6);width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-size:14px;transition:opacity .15s}
 .comment-send:hover{opacity:.8}
+.admin-wrap{max-width:800px;margin:0 auto;padding:40px 32px}
+.admin-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px}
+.admin-title{font-size:20px;font-weight:700;letter-spacing:-.02em;margin-bottom:16px}
+.admin-actions{margin-bottom:20px}
+.admin-new-btn{font-size:13px;padding:8px 16px}
+.admin-logout{background:none;border:1px solid var(--bd);border-radius:var(--r4);padding:6px 12px;font-size:12px;font-weight:500;cursor:pointer;color:var(--t2);font-family:var(--f);transition:all .1s}
+.admin-logout:hover{background:var(--hv);color:var(--tx)}
+.org-list{display:flex;flex-direction:column;gap:12px}
+.org-card{background:var(--su);border:1px solid var(--bd);border-radius:var(--r10);padding:20px 24px;display:flex;align-items:center;gap:16px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.org-card-info{flex:1}
+.org-card-name{font-size:15px;font-weight:600;letter-spacing:-.01em;margin-bottom:2px}
+.org-card-meta{font-size:12px;color:var(--t3)}
+.org-card-actions{display:flex;gap:8px}
+.org-user-row{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--bg);border-radius:var(--r4);margin-bottom:4px;font-size:13px}
+.org-user-name{font-weight:500}
+.org-user-rm{background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:3px;transition:color .1s}
+.org-user-rm:hover{color:#ef4444}
 </style>
 </head>
 <body>
@@ -382,11 +399,52 @@ tr:hover .comment-btn{opacity:.55}
   <div class="lw">
     <div class="lm"><div class="lmd"></div>QA Tracker</div>
     <h1>Sign in to<br>your workspace</h1>
-    <p>Enter your name to start tracking issues with your team.</p>
-    <input type="text" id="ni" placeholder="Your name" maxlength="40" autocomplete="off">
-    <button onclick="go()">Continue</button>
+    <p>Enter your credentials to continue.</p>
+    <input type="text" id="ni" placeholder="Username" maxlength="40" autocomplete="username" onkeydown="if(event.key==='Enter')G('npass').focus()">
+    <input type="password" id="npass" placeholder="Password" maxlength="100" autocomplete="current-password" onkeydown="if(event.key==='Enter')go()">
+    <div id="lo-err" style="font-size:12px;color:#dc2626;min-height:18px;margin-bottom:4px"></div>
+    <button onclick="go()">Sign in</button>
     <hr class="ld">
     <p class="lh">syzravryqjpmeiouoxtk.supabase.co</p>
+  </div>
+</div>
+
+<!-- SUPER ADMIN PANEL -->
+<div id="admin-panel" style="display:none">
+  <div class="admin-wrap">
+    <div class="admin-header">
+      <div class="lm" style="margin-bottom:0"><div class="lmd"></div>QA Tracker — Admin</div>
+      <button class="admin-logout" onclick="adminLogout()">Sign out</button>
+    </div>
+    <h2 class="admin-title">Organizations</h2>
+    <div class="admin-actions">
+      <button class="btn bs admin-new-btn" onclick="openOrgModal()">+ New Organization</button>
+    </div>
+    <div id="org-list" class="org-list"></div>
+  </div>
+</div>
+
+<!-- ORG MODAL (create/edit org) -->
+<div id="org-modal" style="display:none" class="mb" onclick="if(event.target===this)closeOrgModal()">
+  <div class="mp" style="width:480px">
+    <div class="mt"><h2 id="org-modal-title">New Organization</h2><button class="mc" onclick="closeOrgModal()">&#x2715;</button></div>
+    <div class="mbd">
+      <div class="mf"><label>Organization Name</label><input id="org-name" placeholder="e.g. YallaFix, ACME Corp..." maxlength="60"></div>
+      <div class="mf"><label>Cloudinary Folder</label><input id="org-cl-folder" placeholder="e.g. yallafix_qa (auto-filled)" maxlength="60"></div>
+      <div id="org-users-section">
+        <div style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Members</div>
+        <div id="org-user-list"></div>
+        <div class="mf" style="display:flex;gap:8px;margin-top:8px">
+          <input id="new-ou-name" placeholder="Username" style="flex:1">
+          <input id="new-ou-pass" type="password" placeholder="Password" style="flex:1">
+          <button class="btn bs" style="padding:6px 12px;font-size:12px" onclick="addOrgUser()">Add</button>
+        </div>
+      </div>
+    </div>
+    <div class="mft">
+      <button class="btn bg2" onclick="closeOrgModal()">Cancel</button>
+      <button class="btn bs" onclick="saveOrg()">Save Organization</button>
+    </div>
   </div>
 </div>
 
@@ -406,7 +464,7 @@ tr:hover .comment-btn{opacity:.55}
   <nav class="sb">
     <div class="sbh">
       <div class="sblo"><svg viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4" stroke="white" stroke-width="1.5"/><circle cx="6" cy="6" r="1.5" fill="white"/></svg></div>
-      <div><div class="sbn">QA Tracker</div><div class="sbp">YallaFix QA</div></div>
+      <div><div class="sbn">QA Tracker</div><div class="sbp" id="sb-project-name">YallaFix QA</div></div>
     </div>
     <div class="sbs" style="margin-top:8px">
       <div class="sbl-row">
@@ -619,9 +677,13 @@ const SEED=[
 let me=null,uid=null,myC=null;
 let teams=[];
 let rounds=[];
-let currentRoundId=null; // null = All rounds view
-let comments=[]; // all comments across all issues, loaded from Supabase
+let currentRoundId=null;
+let comments=[];
 let notifPermission='default';
+// Auth / org state
+let currentOrg=null;   // {id, name, cloudinary_folder}
+let currentUser=null;  // {id, name, role, org_id}
+let isSuperAdmin=false;
 let issues=[],online={},editing={};
 let sK=null,sD=1,vF='all',activeFilters=new Set(),selId=null,editId=null;
 const cmap={};
@@ -644,28 +706,76 @@ function fmtDate(iso){
 }
 
 G('ni').addEventListener('keydown',e=>{if(e.key==='Enter')go()});
-function go(){
-  const n=G('ni').value.trim();if(!n)return;
-  startSession(n);
+async function sha256(str){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
+
+async function go(){
+  const name=G('ni').value.trim();
+  const pass=G('npass').value;
+  const errEl=G('lo-err');
+  errEl.textContent='';
+  if(!name){errEl.textContent='Please enter your username.';return;}
+  if(!pass){errEl.textContent='Please enter your password.';return;}
+
+  // Super admin check (hardcoded, never stored in DB)
+  if(name==='admin'){
+    const hash=await sha256(pass);
+    const correctHash=await sha256('G123456');
+    if(hash!==correctHash){errEl.textContent='Incorrect password.';return;}
+    isSuperAdmin=true;
+    localStorage.setItem('qa_sa_session','1');
+    G('lo').style.display='none';
+    startAdminSession();
+    return;
+  }
+
+  // Regular user: look up in Supabase users table
+  try{
+    const passHash=await sha256(pass);
+    const data=await qget('users','select=*&name=eq.'+encodeURIComponent(name)+'&limit=1');
+    if(!data.length){errEl.textContent='User not found.';return;}
+    const user=data[0];
+    if(user.password_hash!==passHash){errEl.textContent='Incorrect password.';return;}
+    if(user.is_active===false){errEl.textContent='Account is disabled.';return;}
+    currentUser=user;
+    const orgs=await qget('organizations','select=*&id=eq.'+user.org_id+'&limit=1');
+    if(!orgs.length){errEl.textContent='Organization not found.';return;}
+    currentOrg=orgs[0];
+    localStorage.setItem('qa_session',JSON.stringify({userId:user.id,orgId:user.org_id,name:user.name,color:user.color||AVC[0],orgName:currentOrg.name,orgFolder:currentOrg.cloudinary_folder}));
+    startSession(user.name,user.color||AVC[0]);
+  }catch(e){
+    errEl.textContent='Login failed: '+e.message;
+  }
+}
+
 async function logoutUser(){
-  if(!(await showConfirm('Log out','You will need to enter your name again to come back.','Log out','danger')))return;
+  if(!(await showConfirm('Log out','You will need to sign in again to come back.','Log out','danger')))return;
   try{ if(uid) await qdel('presence','id',uid); }catch(e){}
+  localStorage.removeItem('qa_session');
+  localStorage.removeItem('qa_sa_session');
   localStorage.removeItem('qa_username');
   if(ws)ws.close();
   location.reload();
 }
-function startSession(n){
+
+function startSession(n,color){
   me=n;
   uid=localStorage.getItem('qa_uid')||('u_'+Math.random().toString(36).slice(2,9));
   localStorage.setItem('qa_uid',uid);
-  myC=localStorage.getItem('qa_color')||AVC[Math.floor(Math.random()*AVC.length)];
+  myC=color||localStorage.getItem('qa_color')||AVC[Math.floor(Math.random()*AVC.length)];
   localStorage.setItem('qa_color',myC);
   localStorage.setItem('qa_username',n);
   cmap[n]=myC;
   G('lo').style.display='none';
   G('loading-overlay').classList.add('show');
   G('mav').textContent=ini(n);G('mav').style.background=myC;G('mn').textContent=n;
+  // Update org name in sidebar
+  if(currentOrg) {
+    const sp=G('sb-project-name');
+    if(sp)sp.textContent=currentOrg.name;
+  }
   loadLocal();loadTeamsLocal();loadRoundsLocal();
   initSB();
   requestNotifPermission();
@@ -691,6 +801,18 @@ async function qget(tbl,qs){
   const r=await fetch(SB+'/rest/v1/'+tbl+'?'+qs,{headers:{...H(),'Prefer':'return=representation'}});
   if(!r.ok)throw new Error((await r.json()).message||r.statusText);
   return r.json();
+}
+// Org-scoped GET: always filters by current org_id
+const ORG_TABLES=['issues','teams','rounds','comments','presence'];
+async function qgetOrg(tbl,qs){
+  const orgId=currentOrg&&currentOrg.id;
+  const orgFilter=orgId&&ORG_TABLES.includes(tbl)?'&org_id=eq.'+orgId:'';
+  return qget(tbl,qs+orgFilter);
+}
+async function qpostOrg(tbl,rows){
+  const orgId=currentOrg&&currentOrg.id;
+  if(orgId&&ORG_TABLES.includes(tbl))rows=rows.map(r=>({...r,org_id:orgId}));
+  return qpost(tbl,rows);
 }
 async function qpost(tbl,data){
   const r=await fetch(SB+'/rest/v1/'+tbl,{method:'POST',headers:{...H(),'Prefer':'return=representation'},body:JSON.stringify(data)});
@@ -739,8 +861,8 @@ function setConn(ok){
 }
 
 async function seedOrLoad(){
-  const data=await qget('issues','select=*&order=created_at');
-  if(data.length===0){const ins=await qpost('issues',SEED);issues=ins;}
+  const data=await qgetOrg('issues','select=*&order=created_at');
+  if(data.length===0){const ins=await qpostOrg('issues',SEED);issues=ins;}
   else{issues=data;}
   saveLocal();renderAll();
 }
@@ -789,6 +911,8 @@ function startRT(){
         const old=d.old_record;
 
         if(table==='issues'){
+          const myOrg=currentOrg&&currentOrg.id;
+          if(myOrg&&rec&&rec.org_id&&rec.org_id!==myOrg)return; // ignore other orgs
           if(type==='INSERT'&&rec&&!issues.find(i=>i.id===rec.id)){
             issues.push(rec);
             saveLocal();renderAll();
@@ -869,14 +993,14 @@ async function pp(){
   try{
     // Remove any stale sessions with the same name (same user logged in from another tab/device)
     await fetch(SB+'/rest/v1/presence?name=eq.'+encodeURIComponent(me)+'&id=neq.'+encodeURIComponent(uid),{method:'DELETE',headers:H()});
-    await qupsert('presence',{id:uid,name:me,color:myC,last_seen:new Date().toISOString()});
+    await qupsert('presence',{id:uid,name:me,color:myC,org_id:currentOrg&&currentOrg.id,last_seen:new Date().toISOString()});
   }catch(e){}
 }
 async function pl(){
   try{
     const cutoff=new Date(Date.now()-20000).toISOString();
     await fetch(SB+'/rest/v1/presence?last_seen=lt.'+encodeURIComponent(cutoff),{method:'DELETE',headers:H()});
-    const data=await qget('presence','select=*');
+    const data=await qgetOrg('presence','select=*');
     online={};data.forEach(u=>{online[u.id]={name:u.name,color:u.color}});
     renderOnline();
   }catch(e){}
@@ -1320,7 +1444,7 @@ async function sm(){
     const idx2=issues.findIndex(i=>i.id===editId);if(idx2>=0)Object.assign(issues[idx2],{updated_by:me,updated_at:now});
     try{await qpatch('issues',editId,metaUpd);toast('Issue updated')}catch(e){toast('Update failed: '+e.message,'err');return}
   }else{
-    try{const ins=await qpost('issues',[{...data,created_by:me,updated_by:me,updated_at:now}]);issues.push(ins[0]);saveLocal();toast('Issue created')}
+    try{const ins=await qpostOrg('issues',[{...data,created_by:me,updated_by:me,updated_at:now}]);issues.push(ins[0]);saveLocal();toast('Issue created')}
     catch(e){issues.push({...data,id:'l_'+Math.random().toString(36).slice(2),created_by:me,updated_by:me,updated_at:now});saveLocal();toast('Saved locally','warn')}
   }
   cm();renderAll();
@@ -1387,7 +1511,7 @@ function loadTeamsLocal(){
 
 async function loadTeams(){
   try{
-    const data=await qget('teams','select=*&order=name');
+    const data=await qgetOrg('teams','select=*&order=name');
     if(data.length===0){
       // Seed default teams
       const ins=await qpost('teams',DEFAULT_TEAMS.map(t=>({id:undefined,name:t.name,color:t.color})));
@@ -1494,9 +1618,9 @@ function loadRoundsLocal(){
 
 async function loadRounds(){
   try{
-    const data=await qget('rounds','select=*&order=created_at');
+    const data=await qgetOrg('rounds','select=*&order=created_at');
     if(data.length===0){
-      const ins=await qpost('rounds',[{name:'Round 1'}]);
+      const ins=await qpostOrg('rounds',[{name:'Round 1'}]);
       rounds=ins;
     }else{
       rounds=data;
@@ -1598,7 +1722,7 @@ async function saveRound(){
   closeAddRound();
   toast('Round "'+name+'" created');
   try{
-    const ins=await qpost('rounds',[newRound]);
+    const ins=await qpostOrg('rounds',[newRound]);
     if(ins[0]){
       const idx=rounds.findIndex(r=>r.id===tempId);
       if(idx>=0)rounds[idx]=ins[0];
@@ -1632,7 +1756,7 @@ async function deleteRound(roundId){
 /* COMMENTS */
 async function loadComments(){
   try{
-    const data=await qget('comments','select=*&order=created_at');
+    const data=await qgetOrg('comments','select=*&order=created_at');
     comments=data||[];
   }catch(e){console.warn('comments load failed',e)}
 }
@@ -1668,7 +1792,7 @@ async function submitComment(issueId){
   if(!inp)return;
   const text=inp.value.trim();
   if(!text)return;
-  const payload={issue_id:issueId,author:me,text:text};
+  const payload={issue_id:issueId,author:me,text:text,org_id:currentOrg&&currentOrg.id};
   inp.value='';
   inp.disabled=true;
   try{
@@ -1708,9 +1832,116 @@ function notify(title,body,tag){
   }catch(e){}
 }
 
+/* SUPER ADMIN */
+function startAdminSession(){
+  G('admin-panel').style.display='block';
+  loadOrgs();
+}
+function adminLogout(){
+  localStorage.removeItem('qa_sa_session');
+  location.reload();
+}
+
+let editingOrgId=null;
+let draftOrgUsers=[]; // [{name, password_hash, role}]
+
+async function loadOrgs(){
+  const orgs=await qget('organizations','select=*&order=name');
+  const orgList=G('org-list');
+  if(!orgs.length){orgList.innerHTML='<div style="color:var(--t3);font-size:13px;padding:20px 0">No organizations yet. Create your first one above.</div>';return;}
+  orgList.innerHTML=orgs.map(o=>`
+    <div class="org-card">
+      <div class="org-card-info">
+        <div class="org-card-name">${esc(o.name)}</div>
+        <div class="org-card-meta">Folder: ${esc(o.cloudinary_folder||'-')}</div>
+      </div>
+      <div class="org-card-actions">
+        <button class="btn bg2" data-org-id="${o.id}" onclick="openOrgModal('${o.id}')">Edit</button>
+      </div>
+    </div>`).join('');
+}
+
+function openOrgModal(orgId){
+  editingOrgId=orgId||null;
+  draftOrgUsers=[];
+  G('org-modal-title').textContent=orgId?'Edit Organization':'New Organization';
+  G('org-name').value='';G('org-cl-folder').value='';G('new-ou-name').value='';G('new-ou-pass').value='';
+  if(orgId){
+    // Load existing org data
+    qget('organizations','select=*&id=eq.'+orgId+'&limit=1').then(data=>{
+      if(data[0]){G('org-name').value=data[0].name;G('org-cl-folder').value=data[0].cloudinary_folder||'';}
+    });
+    qget('users','select=id,name,role&org_id=eq.'+orgId+'&order=name').then(data=>{
+      draftOrgUsers=data.map(u=>({...u,password_hash:null})); // don't load hashes
+      renderOrgUsers();
+    });
+  }else{
+    renderOrgUsers();
+  }
+  G('org-modal').style.display='flex';
+  setTimeout(()=>G('org-name').focus(),50);
+}
+function closeOrgModal(){G('org-modal').style.display='none';}
+
+function renderOrgUsers(){
+  const list=G('org-user-list');
+  if(!draftOrgUsers.length){list.innerHTML='<div style="font-size:12px;color:var(--t3);padding:4px 0">No members yet.</div>';return;}
+  list.innerHTML=draftOrgUsers.map((u,i)=>`
+    <div class="org-user-row">
+      <span class="org-user-name">${esc(u.name)}</span>
+      <span style="color:var(--t3);font-size:11px">${u.id?'existing':'new'}</span>
+      <button class="org-user-rm" onclick="removeOrgUser(${i})">&#x2715;</button>
+    </div>`).join('');
+}
+function removeOrgUser(idx){draftOrgUsers.splice(idx,1);renderOrgUsers();}
+
+async function addOrgUser(){
+  const name=G('new-ou-name').value.trim();
+  const pass=G('new-ou-pass').value;
+  if(!name||!pass){toast('Enter name and password','warn');return;}
+  if(draftOrgUsers.find(u=>u.name===name)){toast('User already added','warn');return;}
+  const hash=await sha256(pass);
+  draftOrgUsers.push({name,password_hash:hash,role:'member'});
+  G('new-ou-name').value='';G('new-ou-pass').value='';
+  renderOrgUsers();
+  toast(name+' added');
+}
+
+async function saveOrg(){
+  const name=G('org-name').value.trim();
+  const folder=(G('org-cl-folder').value.trim()||name).replace(/[^a-zA-Z0-9_-]/g,'_');
+  if(!name){toast('Organization name required','warn');return;}
+
+  let orgId=editingOrgId;
+  if(orgId){
+    await qpatch('organizations',orgId,{name,cloudinary_folder:folder});
+  }else{
+    const ins=await qpost('organizations',[{name,cloudinary_folder:folder}]);
+    orgId=ins[0].id;
+  }
+
+  // Upsert new users (with password_hash set = new user)
+  const newUsers=draftOrgUsers.filter(u=>!u.id&&u.password_hash);
+  for(const u of newUsers){
+    await qpost('users',[{name:u.name,password_hash:u.password_hash,role:'member',org_id:orgId,is_active:true}]);
+  }
+
+  toast('Organization saved');
+  closeOrgModal();
+  loadOrgs();
+}
+
+// Also seed existing team members with default password 123456
+async function seedUserPasswords(orgId){
+  const hash=await sha256('123456');
+  // This is called manually or on first org creation to backfill existing users
+  return hash;
+}
+
 /* CLOUDINARY UPLOAD */
 const CL_CLOUD  = 'dahl3grgy';
-const CL_FOLDER = 'YallaFix QA';
+const CL_FOLDER = 'YallaFix QA'; // default, overridden at runtime by getOrgFolder()
+function getOrgFolder(){return (currentOrg&&currentOrg.cloudinary_folder)||'YallaFix QA';}
 const CL_KEY    = '987934344424887';
 const CL_SECRET = 'LX6d3e7ZN8jVr_nkbuKPesK7FHM';
 
@@ -1783,12 +2014,12 @@ async function uploadOne(file){
   if(prog)prog.appendChild(row);
 
   const ts = Math.round(Date.now()/1000);
-  const sigParams = { folder: CL_FOLDER, timestamp: ts };
+  const sigParams = { folder: getOrgFolder(), timestamp: ts };
   const signature = await clSign(sigParams);
 
   const fd=new FormData();
   fd.append('file',file);
-  fd.append('folder',CL_FOLDER);
+  fd.append('folder',getOrgFolder());
   fd.append('api_key',CL_KEY);
   fd.append('timestamp',ts);
   fd.append('signature',signature);
@@ -1829,16 +2060,27 @@ async function uploadOne(file){
   }catch(e){}
 }
 
-// Auto-login if a username was saved previously (persists across refresh/reload)
+// Auto-login if a session was saved previously
 (function(){
   try{
-    const saved=localStorage.getItem('qa_username');
-    if(saved){
-      console.log('[QA Tracker] Auto-login as', saved);
-      startSession(saved);
-    }else{
-      console.log('[QA Tracker] No saved username, showing login screen');
+    // Check superadmin session
+    if(localStorage.getItem('qa_sa_session')==='1'){
+      isSuperAdmin=true;
+      G('lo').style.display='none';
+      startAdminSession();
+      return;
     }
+    // Check regular user session
+    const savedSession=localStorage.getItem('qa_session');
+    if(savedSession){
+      const sess=JSON.parse(savedSession);
+      currentOrg={id:sess.orgId,name:sess.orgName,cloudinary_folder:sess.orgFolder};
+      currentUser={id:sess.userId,name:sess.name,org_id:sess.orgId};
+      console.log('[QA Tracker] Auto-login as',sess.name,'in',sess.orgName);
+      startSession(sess.name,sess.color);
+      return;
+    }
+    console.log('[QA Tracker] No session, showing login screen');
   }catch(e){
     console.error('[QA Tracker] Auto-login failed:', e);
   }
