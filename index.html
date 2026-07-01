@@ -468,7 +468,8 @@ tr:hover .comment-btn{opacity:.55}
   <div class="mp" style="width:420px">
     <div class="mt"><h2 id="uem-title">Edit User</h2><button class="mc" onclick="G('user-edit-modal').style.display='none'">&#x2715;</button></div>
     <div class="mbd">
-      <div class="mf"><label>Username</label><input id="uem-name" placeholder="Username..."></div>
+      <div class="mf"><label>Full Name</label><input id="uem-fullname" placeholder="e.g. Mohamed Al-Rashid..."></div>
+      <div class="mf"><label>Username <span style="font-weight:400;color:var(--t3)">(used for login)</span></label><input id="uem-name" placeholder="Username..."></div>
       <div class="mf"><label>New Password <span style="font-weight:400;color:var(--t3)">(leave blank to keep current)</span></label><input id="uem-pass" type="password" placeholder="New password..."></div>
       <div class="mf"><label>Organization</label><select id="uem-org"></select></div>
       <div class="mf"><label>Role</label>
@@ -496,9 +497,10 @@ tr:hover .comment-btn{opacity:.55}
       <div id="org-users-section">
         <div style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Members</div>
         <div id="org-user-list"></div>
-        <div class="mf" style="display:flex;gap:8px;margin-top:8px">
-          <input id="new-ou-name" placeholder="Username" style="flex:1">
-          <input id="new-ou-pass" type="password" placeholder="Password" style="flex:1">
+        <div class="mf" style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+          <input id="new-ou-fullname" placeholder="Full name (e.g. Mohamed Ali)" style="flex:2;min-width:140px">
+          <input id="new-ou-name" placeholder="Username (for login)" style="flex:1;min-width:100px">
+          <input id="new-ou-pass" type="password" placeholder="Password" style="flex:1;min-width:100px">
           <button class="btn bs" style="padding:6px 12px;font-size:12px" onclick="addOrgUser()">Add</button>
         </div>
       </div>
@@ -552,18 +554,9 @@ tr:hover .comment-btn{opacity:.55}
       <div class="si" data-view="Deleted" onclick="sv('Deleted',this)"><span class="ic" style="color:#f87171">&#x1F5D1;</span>Deleted<span class="sc" id="scx">0</span></div>
     </div>
     <div class="sbs" style="margin-top:8px">
-      <div class="sbl-row">
-        <div class="sbl">Team</div>
-        <button class="sbl-add" onclick="openAddMember()" title="Add team member">+</button>
-      </div>
+      <div class="sbl" style="padding:0 8px;margin-bottom:4px">Team</div>
       <div id="team-list"></div>
-      <div id="add-member-form" style="display:none">
-        <input class="si-input" id="new-member-name" placeholder="Member name..." maxlength="30" onkeydown="if(event.key==='Enter')saveMember();if(event.key==='Escape')closeAddMember()">
-        <div class="si-form-actions">
-          <button class="si-form-btn si-form-cancel" onclick="closeAddMember()">Cancel</button>
-          <button class="si-form-btn si-form-save" onclick="saveMember()">Add</button>
-        </div>
-      </div>
+    </div>
     </div>
     <div class="sbsp"></div>
     <div class="sbft">
@@ -1092,8 +1085,17 @@ function filtered(){
     if(q)d=d.filter(i=>['name','type','user','status','priority','details'].some(k=>(i[k]||'').toLowerCase().includes(q)));
     if(vF!=='all'){
       const VM={High:'priority',Medium:'priority',Low:'priority','In Progress':'status','Not Started':'status',Done:'status'};
-      teams.forEach(t=>{VM[t.name]='user'});
-      const f=VM[vF];if(f)d=d.filter(i=>(i[f]||'')===vF);
+      teams.forEach(t=>{VM[t.name]='user';if(t.username&&t.username!==t.name)VM[t.username]='user';});
+      const f=VM[vF];
+      if(f){
+        // Match against both full name and username for flexible filtering
+        const matchTeam=teams.find(t=>t.name===vF||t.username===vF);
+        if(matchTeam){
+          d=d.filter(i=>(i[f]||'')===matchTeam.name||(i[f]||'')===matchTeam.username);
+        }else{
+          d=d.filter(i=>(i[f]||'')===vF);
+        }
+      }
     }
   }
   if(activeFilters.size>0){
@@ -1187,8 +1189,13 @@ function renderCounts(){
     if(q)base=base.filter(function(i){return ["name","type","user","status","priority","details"].some(function(k){return (i[k]||"").toLowerCase().includes(q);});});
     if(vF!=="all"){
       var VM={High:"priority",Medium:"priority",Low:"priority","In Progress":"status","Not Started":"status",Done:"status"};
-      teams.forEach(function(t){VM[t.name]="user";});
-      var vff=VM[vF];if(vff)base=base.filter(function(i){return (i[vff]||"")===vF;});
+      teams.forEach(function(t){VM[t.name]="user";if(t.username&&t.username!==t.name)VM[t.username]="user";});
+      var vff=VM[vF];
+      if(vff){
+        var matchT=teams.find(function(t){return t.name===vF||t.username===vF;});
+        if(matchT){base=base.filter(function(i){return (i[vff]||"")===matchT.name||(i[vff]||"")===matchT.username;});}
+        else{base=base.filter(function(i){return (i[vff]||"")===vF;});}
+      }
     }
   }
   s("fa",base.length);
@@ -1566,23 +1573,38 @@ const DEFAULT_TEAMS = [{id:'t_omar',name:'Omar',color:'#2563eb'},{id:'t_moh',nam
 function loadTeamsLocal(){
   try{
     const s=localStorage.getItem('qa_teams_v1');
-    teams=s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULT_TEAMS));
-  }catch{teams=JSON.parse(JSON.stringify(DEFAULT_TEAMS))}
+    if(s){
+      const parsed=JSON.parse(s);
+      // Ensure each team entry has a display name (full_name || name)
+      teams=parsed.map(t=>({...t,name:t.name||t.username||'?'}));
+    }else{
+      teams=[];
+    }
+  }catch{teams=[];}
+  // Populate color map from team data so uc(name) returns correct colors
+  teams.forEach(t=>{if(t.color){cmap[t.name]=t.color;if(t.username)cmap[t.username]=t.color;}});
   renderTeamSidebar();
   renderAssigneeDropdown();
 }
 
 async function loadTeams(){
   try{
-    const data=await qgetOrg('teams','select=*&order=name');
-    if(data.length===0){
-      // Seed default teams
-      const ins=await qpost('teams',DEFAULT_TEAMS.map(t=>({id:undefined,name:t.name,color:t.color})));
-      teams=ins;
-    }else{
-      teams=data;
-    }
+    // Teams are derived from the org's users list (not the teams table)
+    // This ensures only admin-managed users appear as team members
+    const orgId=currentOrg&&currentOrg.id;
+    if(!orgId){teams=[];renderTeamSidebar();renderAssigneeDropdown();return;}
+    const data=await qget('users','select=id,name,full_name,color,is_active&org_id=eq.'+orgId+'&is_active=eq.true&order=full_name');
+    // Map users to team-like objects
+    // username is the login key, full_name is for display
+    teams=data.map(u=>({
+      id:u.id,
+      name:u.full_name||u.name,   // display name (full_name if set, else username)
+      username:u.name,            // login username
+      color:u.color||AVC[Math.abs((u.name||'').split('').reduce((a,c)=>a+c.charCodeAt(0),0))%AVC.length]
+    }));
     localStorage.setItem('qa_teams_v1',JSON.stringify(teams));
+    // Populate color map
+    teams.forEach(t=>{if(t.color){cmap[t.name]=t.color;if(t.username)cmap[t.username]=t.color;}});
     renderTeamSidebar();
     renderAssigneeDropdown();
   }catch(e){console.warn('teams load failed',e)}
@@ -1622,7 +1644,11 @@ function renderAssigneeDropdown(){
   const sel=G('mus-sel');
   if(!sel)return;
   const cur=sel.value;
-  sel.innerHTML=`<option value="">— Select assignee —</option>`+teams.map(t=>`<option value="${esc(t.name)}"${t.name===cur?' selected':''}>${esc(t.name)}</option>`).join('');
+  // value = display name (full_name or username), shown text = same
+  sel.innerHTML='<option value="">— Select assignee —</option>'+teams.map(t=>{
+    const display=esc(t.name); // t.name is already full_name||username
+    return`<option value="${display}"${t.name===cur?' selected':''} data-username="${esc(t.username||t.name)}">${display}</option>`;
+  }).join('');
 }
 
 function openAddMember(){
@@ -1635,6 +1661,7 @@ function closeAddMember(){
 }
 
 async function saveMember(){
+  toast('Team members are managed by the admin.','warn');return;
   const name=G('new-member-name').value.trim();
   if(!name)return;
   if(teams.find(t=>t.name.toLowerCase()===name.toLowerCase())){
@@ -1991,8 +2018,9 @@ async function addOrgUser(){
   if(!name||!pass){toast('Enter name and password','warn');return;}
   if(draftOrgUsers.find(u=>u.name.toLowerCase()===name.toLowerCase())){toast('User already added','warn');return;}
   const hash=await sha256(pass);
-  draftOrgUsers.push({name:name.toLowerCase(),password_hash:hash,role:'member',is_active:true});
-  G('new-ou-name').value='';G('new-ou-pass').value='';
+  const fullNm=G('new-ou-fullname')&&G('new-ou-fullname').value.trim();
+  draftOrgUsers.push({name:name.toLowerCase(),full_name:fullNm||null,password_hash:hash,role:'member',is_active:true});
+  G('new-ou-name').value='';G('new-ou-pass').value='';if(G('new-ou-fullname'))G('new-ou-fullname').value='';
   renderOrgUsers();toast(name+' added');
 }
 
@@ -2009,7 +2037,7 @@ async function saveOrg(){
   }
   const newUsers=draftOrgUsers.filter(u=>!u.id&&u.password_hash);
   for(const u of newUsers){
-    await qpost('users',[{name:u.name,password_hash:u.password_hash,role:'member',org_id:orgId,is_active:true}]);
+    await qpost('users',[{name:u.name,full_name:u.full_name||null,password_hash:u.password_hash,role:'member',org_id:orgId,is_active:true}]);
   }
   toast('Organization saved');closeOrgModal();loadOrgs();
 }
@@ -2054,7 +2082,7 @@ async function backupOrg(orgId,orgName,silent){
 // ── User management ───────────────────────────────────────────────────────────
 async function loadAllUsers(){
   const orgFilter=G('admin-user-org-filter')&&G('admin-user-org-filter').value;
-  const qs='select=*,organizations(name)&order=name'+(orgFilter?'&org_id=eq.'+orgFilter:'');
+  const qs='select=*,organizations(name)&order=full_name.nullslast,name'+(orgFilter?'&org_id=eq.'+orgFilter:'');
   let users=[];
   try{users=await qget('users',qs);}catch(e){users=await qget('users','select=*&order=name');}
   const list=G('admin-user-list');
@@ -2065,14 +2093,15 @@ async function loadAllUsers(){
     return`<div class="admin-user-row">
       <div class="aur-av" style="background:${color}">${ini(u.name)}</div>
       <div class="aur-info">
-        <div class="aur-name">${esc(u.name)}</div>
+        <div class="aur-name">${esc(u.full_name||u.name)}</div>
+        <div class="aur-meta" style="font-size:10px;color:var(--t3);font-weight:400;margin-top:0">@${esc(u.name)}</div>
         <div class="aur-meta">${esc(orgName)} &middot;
           <span class="aur-badge role">${esc(u.role||'member')}</span>
           <span class="aur-badge ${u.is_active!==false?'active':'inactive'}">${u.is_active!==false?'Active':'Inactive'}</span>
         </div>
       </div>
       <div class="aur-actions">
-        <button class="btn bg2" style="font-size:12px" onclick="openUserEdit('${u.id}','${esc(u.name)}','${u.org_id||''}','${u.role||'member'}',${u.is_active!==false})">Edit</button>
+        <button class="btn bg2" style="font-size:12px" onclick="openUserEdit('${u.id}','${esc(u.name)}','${u.org_id||''}','${u.role||'member'}',${u.is_active!==false},'${esc(u.full_name||'')}')">Edit</button>
         <button class="btn" style="background:#fff1f2;color:#9f1239;border-color:#fecdd3;font-size:12px" onclick="deleteUser('${u.id}','${esc(u.name)}')">Delete</button>
       </div>
     </div>`;
@@ -2089,10 +2118,12 @@ function openNewUserModal(){
   setTimeout(()=>G('uem-name').focus(),50);
 }
 
-function openUserEdit(id,name,orgId,role,isActive){
+function openUserEdit(id,name,orgId,role,isActive,fullName){
   editingUserId=id;
   G('uem-title').textContent='Edit User';
-  G('uem-name').value=name;G('uem-pass').value='';G('uem-role').value=role;G('uem-active').checked=isActive;
+  G('uem-name').value=name;
+  if(G('uem-fullname'))G('uem-fullname').value=fullName||'';
+  G('uem-pass').value='';G('uem-role').value=role;G('uem-active').checked=isActive;
   const orgSel=G('uem-org');
   orgSel.innerHTML=allOrgsCache.map(o=>`<option value="${o.id}"${o.id===orgId?' selected':''}>${esc(o.name)}</option>`).join('');
   G('user-edit-modal').style.display='flex';
@@ -2105,7 +2136,8 @@ async function saveUserEdit(){
   const role=G('uem-role').value;
   const isActive=G('uem-active').checked;
   if(!name){toast('Username required','warn');return;}
-  const payload={name,org_id:orgId,role,is_active:isActive};
+  const fullName=G('uem-fullname')&&G('uem-fullname').value.trim();
+  const payload={name,full_name:fullName||null,org_id:orgId,role,is_active:isActive};
   if(pass)payload.password_hash=await sha256(pass);
   if(editingUserId){
     await qpatch('users',editingUserId,payload);
