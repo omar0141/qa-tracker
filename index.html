@@ -530,7 +530,6 @@ tr:hover .comment-btn{opacity:.55}
     <div class="mt"><h2 id="org-modal-title">New Organization</h2><button class="mc" onclick="closeOrgModal()">&#x2715;</button></div>
     <div class="mbd">
       <div class="mf"><label>Organization Name</label><input id="org-name" placeholder="e.g. YallaFix, ACME Corp..." maxlength="60"></div>
-      <div class="mf"><label>Cloudinary Folder</label><input id="org-cl-folder" placeholder="e.g. yallafix_qa (auto-filled)" maxlength="60"></div>
       <div id="org-users-section">
         <div style="font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Members</div>
         <div id="org-user-list"></div>
@@ -2130,13 +2129,13 @@ function openOrgModal(orgId){
   editingOrgId=orgId||null;
   draftOrgUsers=[];
   G('org-modal-title').textContent=orgId?'Edit Organization':'New Organization';
-  G('org-name').value='';G('org-cl-folder').value='';
+  G('org-name').value='';
   if(G('new-ou-name'))G('new-ou-name').value='';
   if(G('new-ou-pass'))G('new-ou-pass').value='';
   if(G('new-ou-fullname'))G('new-ou-fullname').value='';
   if(orgId){
     qget('organizations','select=*&id=eq.'+orgId+'&limit=1').then(function(data){
-      if(data[0]){G('org-name').value=data[0].name;G('org-cl-folder').value=data[0].cloudinary_folder||'';}
+      if(data[0]){G('org-name').value=data[0].name;}
     });
     qget('users','select=id,name,full_name,role,is_active&org_id=eq.'+orgId+'&order=full_name.nullslast,name').then(function(data){
       draftOrgUsers=data.map(function(u){return Object.assign({},u,{password_hash:null});});
@@ -2179,7 +2178,7 @@ async function addOrgUser(){
 
 async function saveOrg(){
   const name=G('org-name').value.trim();
-  const folder=(G('org-cl-folder').value.trim()||name).replace(/[^a-zA-Z0-9_-]/g,'_');
+  const folder=name.replace(/[^a-zA-Z0-9_-]/g,'_');
   if(!name){toast('Organization name required','warn');return;}
   let orgId=editingOrgId;
   if(orgId){
