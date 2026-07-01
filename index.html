@@ -69,7 +69,7 @@ hr.ld{border:none;border-top:1px solid var(--bd);margin:28px 0}
 .mav{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
 .sb-user-info{flex:1;min-width:0}
 .sb-user-fullname{font-size:13px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
-.sb-username{font-size:11px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4}
+.sb-username{font-size:11px;color:var(--ac);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;font-weight:500}
 .sb-logout-icon{background:none;border:none;color:var(--t3);cursor:pointer;padding:6px;border-radius:var(--r4);display:flex;align-items:center;justify-content:center;transition:background .1s,color .1s;flex-shrink:0}
 .sb-logout-icon:hover{background:#fef2f2;color:#9f1239}
 .mav{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}
@@ -866,12 +866,12 @@ function startSession(n,color){
   cmap[n]=myC;
   G('lo').style.display='none';
   G('loading-overlay').classList.add('show');
-  G('mav').textContent=ini(n);G('mav').style.background=myC;G('mn').textContent=n;
-  // Show username (@login) below full name if different
+  G('mav').textContent=ini(n);G('mav').style.background='var(--ac)';G('mn').textContent=n;
+  // Always show @username below full name
   const usernameEl=G('sb-username');
   if(usernameEl){
     const loginName=currentUser&&currentUser.name;
-    usernameEl.textContent=loginName&&loginName.toLowerCase()!==n.toLowerCase()?('@'+loginName):'';
+    usernameEl.textContent=loginName?('@'+loginName):'';
   }
   // Update org name in sidebar
   if(currentOrg) {
